@@ -23,7 +23,7 @@
 // Definitions
 
 #define sampleFreq	200.0f		// sample frequency in Hz
-#define betaDef		0.1f		// 2 * proportional gain
+#define betaDef		0.06f		// 2 * proportional gain
 
 //---------------------------------------------------------------------------------------------------
 // Variable definitions
@@ -43,7 +43,7 @@ float invSqrt(float x);
 // AHRS algorithm update
 
 void madgwickAHRSUpdate(xpcc::Vector3f gyro, xpcc::Vector3f accel,
-		xpcc::Vector3f mag, xpcc::Quaternion<float> &state) {
+		xpcc::Vector3f mag, xpcc::Quaternion<float> &state, float dt) {
 
 	float recipNorm;
 	float s0, s1, s2, s3;
@@ -53,7 +53,7 @@ void madgwickAHRSUpdate(xpcc::Vector3f gyro, xpcc::Vector3f accel,
 
 	// Use IMU algorithm if magnetometer measurement invalid (avoids NaN in magnetometer normalisation)
 	if((mag.x == 0.0f) && (mag.y == 0.0f) && (mag.z == 0.0f)) {
-		madgwickAHRSUpdateIMU(gyro, accel, state);
+		madgwickAHRSUpdateIMU(gyro, accel, state, dt);
 		return;
 	}
 
@@ -146,7 +146,7 @@ void madgwickAHRSUpdate(xpcc::Vector3f gyro, xpcc::Vector3f accel,
 // IMU algorithm update
 
 void madgwickAHRSUpdateIMU(xpcc::Vector3f gyro, xpcc::Vector3f accel,
-		xpcc::Quaternion<float> &state) {
+		xpcc::Quaternion<float> &state, float dt) {
 	float recipNorm;
 	float s0, s1, s2, s3;
 	float qDot1, qDot2, qDot3, qDot4;
@@ -208,10 +208,10 @@ void madgwickAHRSUpdateIMU(xpcc::Vector3f gyro, xpcc::Vector3f accel,
 	}
 
 	// Integrate rate of change of quaternion to yield quaternion
-	q0 += qDot1 * (1.0f / sampleFreq);
-	q1 += qDot2 * (1.0f / sampleFreq);
-	q2 += qDot3 * (1.0f / sampleFreq);
-	q3 += qDot4 * (1.0f / sampleFreq);
+	q0 += qDot1 * dt;
+	q1 += qDot2 * dt;
+	q2 += qDot3 * dt;
+	q3 += qDot4 * dt;
 
 	// Normalise quaternion
 	recipNorm = invSqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);

@@ -18,7 +18,7 @@ extern volatile float beta;				// algorithm gain
 void madgwickAHRSUpdate(xpcc::Vector3f gyro, xpcc::Vector3f accel,
 		const xpcc::Vector3f mag, xpcc::Quaternion<float> &state);
 void madgwickAHRSUpdateIMU(const xpcc::Vector3f gyro, const xpcc::Vector3f accel,
-		xpcc::Quaternion<float> &state);
+		xpcc::Quaternion<float> &state, float dt);
 
 
 #endif /* MADWIGKAHRS_HPP_ */

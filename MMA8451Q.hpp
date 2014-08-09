@@ -638,7 +638,7 @@ public:
 		adapter.initialize(address, 0,0,0,0);
 
 		//enable low noise mode, activate, DR1=1 (200Hz)
-		registerWrite(MMA8451_REG_CTRL_REG1, CTRL_REG1_LNOISE | CTRL_REG1_ACTIVE | (1<<4));
+		registerWrite(MMA8451_REG_CTRL_REG1, CTRL_REG1_LNOISE | CTRL_REG1_ACTIVE | (1<<3));
 
 		//set high resolution oversampling
 		registerWrite(MMA8451_REG_CTRL_REG2, (1<<1));

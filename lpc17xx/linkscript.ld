@@ -10,6 +10,8 @@ MEMORY
 	FLASH (rx) : ORIGIN = 0x00001000, LENGTH = 62k
 
     RAM (rwx) : ORIGIN = 0x10000000, LENGTH = 16k-16
+    
+    EEPROM (r) : ORIGIN = 0, LENGTH = 256
 }
 
 
@@ -38,6 +40,12 @@ SECTIONS
 	/* code section */
 
         /* "normal" code */
+        
+    .eeprom :
+    {
+    	*(.eeprom)
+    }
+    
 	
 	.text :
 	{
@@ -154,7 +162,6 @@ SECTIONS
 		*(.fini .fini.*)
 		
 	} >FLASH
-
 	
 	/* .ARM.exidx is sorted, so has to go in its own output section.  */
 	__exidx_start = .;

@@ -48,8 +48,10 @@ void Hard_Fault_Handler(uint32_t stack[]) {
 	XPCC_LOG_DEBUG .printf("pc  = 0x%08x\n", stack[pc]);
 	XPCC_LOG_DEBUG .printf("psr = 0x%08x\n", stack[psr]);
 
-	for(int i = 0; i < 10000; i++) {}
-	NVIC_SystemReset();
+	while(1);
+
+	//for(int i = 0; i < 10000; i++) {}
+	//NVIC_SystemReset();
 
 }
 

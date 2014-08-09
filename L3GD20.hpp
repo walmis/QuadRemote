@@ -67,8 +67,13 @@ public:
 
 		// 0x0F = 0b00001111
 		// Normal power mode, all axes enabled
-		registerWrite(L3G_CTRL_REG1, 0x5F);
+		registerWrite(L3G_CTRL_REG1, 0x0F | (0b1011)<<4);
 
+		//registerWrite(L3G_CTRL_REG2, 0b1001);
+		//registerWrite(L3G_CTRL_REG5, (1<<4) | (1<<0));
+
+		//set full scale
+		registerWrite(L3G_CTRL_REG4, 0x01 << 4);
 		readPending = false;
 	}
 
@@ -109,8 +114,8 @@ public:
 		}
 		int16_t aux;
 
-		float fs_dps = 0.00875;
-
+		//float fs_dps = 0.00875;
+		float fs_dps = 0.0175;
 
 		for(int i = 0; i < 6; i+=2) {
 			aux = 0;
