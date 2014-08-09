@@ -4,14 +4,16 @@
  *  Created on: Feb 28, 2013
  *      Author: walmis
  */
+#include <xpcc/architecture.hpp>
+#include <xpcc/processing.hpp>
+
+
 #include <lpc17xx_nvic.h>
 #include <lpc17xx_uart.h>
 #include <lpc17xx_pinsel.h>
 
-#include <xpcc/architecture.hpp>
-#include <xpcc/processing.hpp>
 
-#include <xpcc/architecture/peripheral/i2c_adapter.hpp>
+#include <xpcc/driver/connectivity/wireless/at86rf230.hpp>
 
 #include <xpcc/debug.hpp>
 #include <xpcc/math/filter.hpp>
@@ -19,20 +21,17 @@
 #include <xpcc/driver/connectivity/usb/USBDevice.hpp>
 #include <xpcc/io/terminal.hpp>
 
-#include <xpcc/architecture/platform/cortex_m3/lpc/lpc17/i2c_master.hpp>
-
 #include <math.h>
 #include <new>
 
-#include "MMA8451Q.hpp"
-#include "L3GD20.hpp"
+#include "pindefs.hpp"
+
+#include "SensorProcessor.hpp"
 
 using namespace xpcc;
 using namespace xpcc::lpc17;
 
 const char fwversion[16] __attribute__((used, section(".fwversion"))) = "QuadV0.01";
-
-#include "pindefs.hpp"
 
 
 class UARTDevice : public IODevice {
@@ -89,8 +88,8 @@ public:
 	}
 };
 
-//#define _DEBUG
-#define _SER_DEBUG
+#define _DEBUG
+//#define _SER_DEBUG
 
 UARTDevice uart(460800);
 
@@ -111,15 +110,13 @@ xpcc::log::Logger xpcc::log::debug(null);
 #endif
 
 
-MMA8451Q<I2cMaster2> accel;
-L3GD20<I2cMaster2> gyro;
+
 
 
 void boot_jump( uint32_t address ){
    __asm("LDR SP, [R0]\n"
    "LDR PC, [R0, #4]");
 }
-
 
 xpcc::NullIODevice null;
 
@@ -186,13 +183,326 @@ void sysTick() {
 
 }
 
+#define M_FRONT_LEFT 1
+#define M_FRONT_RIGHT 0
+#define M_REAR_LEFT 2
+#define M_REAR_RIGHT 3
+
+
+
+class QuadController : TickerTask {
+
+public:
+
+	QuadController(SensorProcessor& sensors) : sensors(sensors),
+		rollController(0, 0, 0, 0, 1.0f),
+		pitchController(0, 0, 0, 0, 1.0f)
+	{
+
+		Pinsel::setFunc(2,2,1);
+		Pinsel::setFunc(2,3,1);
+		Pinsel::setFunc(2,4,1);
+		Pinsel::setFunc(2,5,1);
+
+		PWM::initTimer(10);
+
+		const int freq = 100;
+		prescale = SystemCoreClock / 10 / freq;
+
+		PWM::matchUpdate(0, prescale);
+
+		PWM::configureMatch(0, PWM::MatchFlags::RESET_ON_MATCH);
+
+		PWM::channelEnable(3);
+		PWM::channelEnable(4);
+		PWM::channelEnable(5);
+		PWM::channelEnable(6);
+
+		PWM::matchUpdate(3, 0);
+		PWM::matchUpdate(4, 0);
+		PWM::matchUpdate(5, 0);
+		PWM::matchUpdate(6, 0);
+
+		PWM::enable();
+
+	}
+
+	struct DataPkt {
+		struct {
+			float w;
+			float x;
+			float y;
+			float z;
+		} rotationQ;
+		struct {
+			float x;
+			float y;
+			float z;
+		} gyro;
+		struct {
+			float x;
+			float y;
+			float z;
+		} acc;
+		struct {
+			float x;
+			float y;
+			float z;
+		} mag;
+		struct {
+			float yaw;
+			float pitch;
+			float roll;
+		} yawPitchRoll;
+		struct {
+			float x;
+			float y;
+			float z;
+		} dynamicAcc;
+		struct {
+			float x;
+			float y;
+			float z;
+		} velocity;
+		struct {
+			float a;
+			float b;
+			float c;
+			float d;
+		} pwm;
+	} __attribute__((packed));
+
+	void fillPacket(DataPkt &packet) {
+		packet.rotationQ.w = sensors.qRotation.w;
+		packet.rotationQ.x = sensors.qRotation.x;
+		packet.rotationQ.y = sensors.qRotation.y;
+		packet.rotationQ.z = sensors.qRotation.z;
+
+		packet.gyro.x = sensors.vGyro.x;
+		packet.gyro.x = sensors.vGyro.x;
+		packet.gyro.x = sensors.vGyro.x;
+
+		packet.acc.x = sensors.vAcc.x;
+		packet.acc.y = sensors.vAcc.y;
+		packet.acc.z = sensors.vAcc.z;
+
+		packet.mag.x = sensors.vMag.x;
+		packet.mag.y = sensors.vMag.y;
+		packet.mag.z = sensors.vMag.z;
+
+		packet.dynamicAcc.x = sensors.dynamicAcc.x;
+		packet.dynamicAcc.y = sensors.dynamicAcc.y;
+		packet.dynamicAcc.z = sensors.dynamicAcc.z;
+
+		xpcc::Vector3f angles = sensors.getYawPitchRoll();
+		packet.yawPitchRoll.yaw = angles[0];
+		packet.yawPitchRoll.pitch = angles[1];
+		packet.yawPitchRoll.roll = angles[2];
+
+		packet.velocity.x = sensors.velocity.x;
+		packet.velocity.y = sensors.velocity.y;
+		packet.velocity.z = sensors.velocity.z;
+
+		packet.pwm.a = motorSpeeds[0];
+		packet.pwm.b = motorSpeeds[1];
+		packet.pwm.c = motorSpeeds[2];
+		packet.pwm.d = motorSpeeds[3];
+
+	}
+
+	Pid<float, 1> rollController;
+	Pid<float, 1> pitchController;
+
+	void setPidPitchRoll(float Kp, float Ki, float Kd) {
+		const float dt = 0.01;
+		Kp *= dt;
+		Kd *= dt;
+		Ki *= dt;
+
+		Pid<float, 1>::Parameter p(Kp, Ki, Kd, 10.0, 1.0);
+
+		rollController.setParameter(p);
+		pitchController.setParameter(p);
+
+	}
+
+	void handleTick() override {
+		static PeriodicTimer<> t(100);
+		static PeriodicTimer<> tControl(10);
+
+		if(tControl.isExpired() && pidEnable) {
+			float motors[4];
+
+			xpcc::Vector3f angles = sensors.getYawPitchRoll();
+			float roll = angles[1];
+			float pitch = angles[2];
+			//qRotation
+
+			//stream.printf("%.4f %.4f\n", roll, pitch);
+
+			float targetRoll = 0;
+			float targetPitch = 0;
+
+			rollController.update((targetRoll - roll));
+			pitchController.update((targetPitch - pitch));
+
+			float pitchSet = pitchController.getValue();
+			float rollSet = rollController.getValue();
+
+			//stream.printf("pid %.4f\n", rollSet);
+
+			const float minSpeed = 0.05f;
+
+			motors[0] = throttle;
+			motors[1] = throttle;
+			motors[2] = throttle;
+			motors[3] = throttle;
+
+			motors[M_FRONT_LEFT] -= rollSet;
+			motors[M_REAR_LEFT] -= rollSet;
+
+			motors[M_FRONT_RIGHT] += rollSet;
+			motors[M_REAR_RIGHT] += rollSet;
+
+			motors[M_FRONT_LEFT] += pitchSet;
+			motors[M_FRONT_RIGHT] += pitchSet;
+
+			motors[M_REAR_LEFT] -= pitchSet;
+			motors[M_REAR_RIGHT] -= pitchSet;
+
+			for(int i =0; i < 4; i++) {
+				if(motors[i] > 1.0f) motors[i] = 1.0f;
+				else if(motors[i] < minSpeed) motors[i] = minSpeed;
+			}
+
+			//stream.printf("motors (%.2f, %.2f, %.2f, %.2f)\n", motors[0], motors[1], motors[2], motors[3]);
+
+			setMotorOutput(motors);
+
+		}
+
+
+		if(t.isExpired()) {
+
+			//XPCC_LOG_DEBUG << "Acc" << sensors.vAcc << "\n";
+
+			auto a = sensors.vAcc;
+			Quaternion<float> q;
+
+			auto v = Vector3f(-0.439,0.137,0.889);
+			auto g = Vector3f(0,0,1);
+
+			auto cross = v.cross(g);
+			//XPCC_LOG_DEBUG << "c" << cross << "\n";
+
+			q.x = cross.x;
+			q.y = cross.y;
+			q.z = cross.z;
+			q.w = sqrtf(v.getLengthSquared() * g.getLengthSquared()) + v * g;
+			q.normalize();
+
+
+			//q.x = a.x;
+			//q.y = a.y;
+			//q.z = a.z;
+
+			//q.normalize();
+			//XPCC_LOG_DEBUG << "q" << q << "\n";
+			//sensors.qRotation = q;
+
+			//XPCC_LOG_DEBUG << "rot" << a.rotated(q) << "\n";
+
+			if(streamData) {
+				stream.write(0xAA);
+
+				DataPkt packet;
+				fillPacket(packet);
+
+				stream.write((uint8_t*)&packet, sizeof(packet));
+
+				stream.write(0x55);
+			}
+
+
+
+//			XPCC_LOG_DEBUG .printf("G: %.4f %.4f %.4f ", xpcc::Angle::toDegree(vGyro[0]),
+//					xpcc::Angle::toDegree(vGyro[1]),
+//					xpcc::Angle::toDegree(vGyro[2]));
+//
+//			XPCC_LOG_DEBUG .printf("A: %.4f %.4f %.4f\n", vAcc[0], vAcc[1], vAcc[2]);
+
+//			Vector3f noGravity = gravityCompensateAcc(vAcc, qRotation);
+//			XPCC_LOG_DEBUG .printf("x:%.4f y:%.4f z:%.4f ", dynamicAcc[0],
+//					dynamicAcc[1], dynamicAcc[2]);
+//
+//			XPCC_LOG_DEBUG .printf("vx:%.4f vy:%.4f vz:%.4f\n", velocity[0],
+//					velocity[1], velocity[2]);
+//
+//			XPCC_LOG_DEBUG .printf("sz: %d\n", sizeof(DataPkt));
+
+
+
+		}
+
+	}
+/*
+	 ---       ---
+	| 1 |     | 0 |
+	 ---   ^   ---
+		\  ^ /
+		 \  /
+		 /  \
+		/    \
+	 ---      ---
+	| 2 |    | 3 |
+	 ---      ---
+*/
+	void setMotorOutput(float speeds[4]) {
+		int min = prescale / 10; //1ms pulsewidth = 0% motor output
+		int max = prescale / 5; //2ms pulsewidth = 100% motor output
+		max /= 2;
+
+		memcpy(motorSpeeds, speeds, sizeof(float)*4);
+
+		//XPCC_LOG_DEBUG .printf("%.2f %.2f %.2f %.2f\n", speeds[0], speeds[1], speeds[2], speeds[3]);
+
+		auto m = PWM::multiMatchUpdate();
+		m.set(3, min + max * speeds[0]);
+		m.set(4, min + max * speeds[1]);
+		m.set(5, min + max * speeds[2]);
+		m.set(6, min + max * speeds[3]);
+		m.commit(PWM::UpdateType::PWM_MATCH_UPDATE_NEXT_RST);
+
+//		PWM::matchUpdate(3, min + max * speeds[0]);
+//		PWM::matchUpdate(4, min + max * speeds[1]);
+//		PWM::matchUpdate(5, min + max * speeds[2]);
+//		PWM::matchUpdate(6, min + max * speeds[3]);
+	}
+
+	bool streamData;
+	bool pidEnable;
+
+	float throttle;
+
+	SensorProcessor& sensors;
+
+private:
+	uint32_t prescale;
+
+	float motorSpeeds[4];
+};
+
+SensorProcessor sensors;
+QuadController qController(sensors);
+
 class CmdTerminal : public Terminal {
 public:
-	CmdTerminal(IODevice& device) : Terminal(device) {
+	CmdTerminal(IODevice& device) : Terminal(device), ios(device) {
 
 	};
 
 protected:
+	xpcc::IOStream ios;
 
 	void handleCommand(uint8_t nargs, char* argv[]) {
 
@@ -224,7 +534,28 @@ protected:
 			XPCC_LOG_DEBUG .printf("rd %x", rd_buf[0]);
 		}
 
+		else if(cmp(argv[0], "startStream")) {
+			qController.streamData = true;
+		}
+		else if(cmp(argv[0], "stopStream")) {
+			qController.streamData = false;
+		}
 
+		else if(cmp(argv[0], "pid")) {
+
+			float kp = 0;
+			float kd = 0;
+			float ki = 0;
+
+			float_scan(argv[1], &kp);
+			float_scan(argv[2], &ki);
+			float_scan(argv[3], &kd);
+
+			stream.printf("PID Kp=%.3f Ki=%.3f Kd=%.3f\n", kp, ki, kd);
+
+			qController.setPidPitchRoll(kp, ki, kd);
+
+		}
 		else if(cmp(argv[0], "i2r")) {
 			uint8_t addr = to_int(argv[1]);
 			uint8_t reg = to_int(argv[2]);
@@ -237,7 +568,7 @@ protected:
 
 			I2cMaster2::startBlocking(&adapter);
 
-			XPCC_LOG_DEBUG .printf("status:%d, value: %x\n", I2cMaster2::getErrorState(), buf[0]);
+			ios.printf("status:%d, value: %x\n", I2cMaster2::getErrorState(), buf[0]);
 
 		}
 		else if(cmp(argv[0], "i2w")) {
@@ -254,15 +585,47 @@ protected:
 
 			I2cMaster2::startBlocking(&adapter);
 
-			XPCC_LOG_DEBUG .printf("status:%d, value: %x\n", I2cMaster2::getErrorState(), buf[0]);
+			ios.printf("status:%d, value: %x\n", I2cMaster2::getErrorState(), buf[0]);
+
+		}
+
+		else if(cmp(argv[0], "throttle")) {
+			float t = to_int(argv[1]) / 100.0;
+			qController.throttle = t;
+		}
+
+		else if(cmp(argv[0], "control")) {
+			if(cmp(argv[1], "enable")) {
+				qController.pidEnable = true;
+				ios.printf("PID control enabled\n");
+			} else {
+				ios.printf("PID control disabled\n");
+				qController.pidEnable = false;
+			}
+		}
+
+		else if(cmp(argv[0], "speed")) {
+			float spd[4];
+			spd[0] = to_int(argv[1]) / 100.0;
+			spd[1] = to_int(argv[2]) / 100.0;
+			spd[2] = to_int(argv[3]) / 100.0;
+			spd[3] = to_int(argv[4]) / 100.0;
+
+			ios.printf("Motor speed (%.2f,%.2f,%.2f,%.2f)\n", spd[0], spd[1], spd[2], spd[3]);
+			qController.setMotorOutput(spd);
+		}
+
+		else if(cmp(argv[0], "zero")) {
+			ios.printf("Zeroing sensors\n");
+			qController.sensors.zero();
 
 		}
 
 		else if(cmp(argv[0], "scan")) {
 
-			static xpcc::I2cWriteAdapter adapter;
+			xpcc::I2cWriteAdapter adapter;
 
-			static uint8_t buf[3] = {0x0F};
+			uint8_t buf[3] = {0x0F};
 
 			XPCC_LOG_DEBUG << "Scanning i2c bus\n";
 			for(int i = 0; i < 128; i++) {
@@ -274,7 +637,9 @@ protected:
 				}
 			}
 		}
-
+		else if(cmp(argv[0], "reset")) {
+			NVIC_SystemReset();
+		}
 
 		else if(cmp(argv[0], "flash")) {
 			LPC_WDT->WDFEED = 0x56;
@@ -285,129 +650,6 @@ protected:
 
 CmdTerminal cmd(device);
 CmdTerminal ucmd(uart);
-
-
-class Median3Vec {
-	xpcc::filter::Median<float, 3> x;
-	xpcc::filter::Median<float, 3> y;
-	xpcc::filter::Median<float, 3> z;
-
-public:
-	void push(xpcc::Vector3f &vec) {
-		x.append(vec[0]);
-		y.append(vec[1]);
-		z.append(vec[2]);
-
-		x.update();
-		y.update();
-		z.update();
-	}
-
-	void getValue(xpcc::Vector3f &vec) {
-		vec[0] = x.getValue();
-		vec[1] = y.getValue();
-		vec[2] = z.getValue();
-	}
-};
-
-template<typename Filter>
-class VecFilter {
-	Filter x;
-	Filter y;
-	Filter z;
-
-public:
-	void append(xpcc::Vector3f &vec) {
-		x.append(vec[0]);
-		y.append(vec[1]);
-		z.append(vec[2]);
-
-	}
-
-	void getValue(xpcc::Vector3f &vec) {
-		vec[0] = x.getValue();
-		vec[1] = y.getValue();
-		vec[2] = z.getValue();
-	}
-};
-
-
-class SensorProcessor : TickerTask {
-	xpcc::Vector3f vGyro;
-	xpcc::Vector3f vAcc;
-
-	xpcc::Vector3f vGyroOffset;
-
-	Median3Vec medianGyro;
-	Median3Vec medianAcc;
-
-	VecFilter<filter::IIR<float, 10000>> gyroZero;
-
-	bool gyroCalib;
-
-	void handleTick() {
-		static PeriodicTimer<> t(50);
-
-		static PeriodicTimer<> tRead(5);
-
-
-		if(t.isExpired()) {
-
-
-			XPCC_LOG_DEBUG .printf("G: %.4f %.4f %.4f ", vGyro[0], vGyro[1], vGyro[2]);
-			XPCC_LOG_DEBUG .printf("A: %.4f %.4f %.4f\n", vAcc[0], vAcc[1], vAcc[2]);
-
-		}
-
-		if(accel.isDataAvail()) {
-			accel.getXYZ(vAcc);
-
-			medianAcc.push(vAcc);
-			medianAcc.getValue(vAcc);
-
-		}
-
-		if(gyro.isDataAvail()) {
-			gyro.getXYZ(vGyro);
-
-			medianGyro.push(vGyro);
-			medianGyro.getValue(vGyro);
-
-			gyroZero.append(vGyro);
-
-			vGyro -= vGyroOffset;
-
-			gyroZero.getValue(vGyroOffset);
-		}
-
-
-
-		static uint8_t read = 0;
-
-		if(tRead.isExpired()) {
-			read = 0;
-		}
-
-		//read sensors in round robin fashion
-		switch(read) {
-		case 0:
-			if(gyro.read()) {
-				read++;
-			}
-			break;
-		case 1:
-			if(accel.read()) {
-				read++;
-			}
-			break;
-
-		}
-
-	}
-
-};
-
-SensorProcessor sensors;
 
 
 extern "C" void I2C2_IRQHandler() {
@@ -429,6 +671,9 @@ class Test : TickerTask {
 
 Test task;
 
+rf230::Driver<SpiMaster0, radioRst, radioSel, radioSlpTr, radioIrq> radio;
+
+
 int main() {
 	//debugIrq = true;
 	ledRed::setOutput(false);
@@ -436,16 +681,20 @@ int main() {
 	lpc17::SysTickTimer::enable();
 	lpc17::SysTickTimer::attachInterrupt(sysTick);
 
+	SpiMaster0::initialize(SpiMaster0::Mode::MODE_3, 8000000);
+
 	xpcc::Random::seed();
 
 	Pinsel::setFunc(0, 10, 2);
 	Pinsel::setFunc(0, 11, 2);
 
-
 	lpc17::I2cMaster2::initialize<xpcc::I2cMaster::DataRate::Fast>();
 
-	accel.initialize(0x1C);
-	gyro.initialize(0x6A);
+	radio.init();
+
+
+
+	sensors.initialize();
 
 	usbConnPin::setOutput(true);
 	device.connect();
