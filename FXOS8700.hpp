@@ -9,6 +9,8 @@
 #define L3GD20_HPP_
 
 #include "I2CDev.hpp"
+#include "eedata.hpp"
+#include <xpcc/processing.hpp>
 #include <xpcc/architecture/peripheral/i2c_adapter.hpp>
 #include <xpcc/math/geometry.hpp>
 
@@ -96,7 +98,7 @@
 #define FXOS8700_MAG_THS_THS_Y0 	0x57
 #define FXOS8700_MAG_THS_THS_Z1 	0x58
 #define FXOS8700_MAG_THS_THS_Z0 	0x59
-#define FXOS8700_MAG_THS_CUNT		0x5a
+#define FXOS8700_MAG_THS_COUNT		0x5a
 #define FXOS8700_M_CTRL_REG1		0x5b
 #define FXOS8700_M_CTRL_REG2		0x5c
 #define FXOS8700_M_CTRL_REG3		0x5d
@@ -138,55 +140,72 @@
 #define FXOS8700_NVM_DATA_BNK1		0xa6
 #define FXOS8700_NVM_DATA_BNK0		0xa7
 
-class FXOS8700 {
+class FXOS8700 : xpcc::TickerTask {
 public:
 	void initialize(uint8_t address) {
 
 		devAddr = address;
 
-		//set active and 200hz output rate
-		registerWrite(FXOS8700_CTRL_REG1, (1<<0) | (1<<4));
+		//disable auto calibration
+		I2Cdev::writeBit(devAddr, FXOS8700_M_CTRL_REG1, 7, 0);
+		I2Cdev::writeBit(devAddr, FXOS8700_M_CTRL_REG2, 4, 1);
+
+		//set active and 50hz output rate
+		registerWrite(FXOS8700_CTRL_REG1, 0b00100001);
 
 		//enable auto calibration, OSR = 7
-		registerWrite(FXOS8700_M_CTRL_REG1, 0b10000001 | (7<<2));
+		//one shot degauss
+		registerWrite(FXOS8700_M_CTRL_REG1, 0b01000001 | (7<<2));
+	}
 
-		readPending = false;
+	void handleInit() override {
+		if(eeprom.isValidToken()) {
+			uint8_t data[6];
+			eeprom.eeRead(EEData::magnetometerCalibration, data);
+
+			I2Cdev::writeBytes(devAddr, FXOS8700_M_OFF_X_MSB, 6, data);
+
+			I2Cdev::writeBit(devAddr, FXOS8700_M_CTRL_REG1, 6, 1); //reset
+
+		} else {
+			startCalibration();
+		}
+	}
+
+	void startCalibration() {
+
+		I2Cdev::writeBit(devAddr, FXOS8700_M_CTRL_REG1, 7, 1);
+		I2Cdev::writeBit(devAddr, FXOS8700_M_CTRL_REG2, 4, 0);
+		I2Cdev::writeBit(devAddr, FXOS8700_M_CTRL_REG2, 2, 1);
+		I2Cdev::writeBit(devAddr, FXOS8700_M_CTRL_REG1, 6, 1); //reset
+
+	}
+
+	void stopCalibration() {
+		I2Cdev::writeBit(devAddr, FXOS8700_M_CTRL_REG1, 7, 0);
+		I2Cdev::writeBit(devAddr, FXOS8700_M_CTRL_REG2, 4, 1);
+
+		uint8_t data[6];
+		I2Cdev::readBytes(devAddr, FXOS8700_M_OFF_X_MSB, 6, data);
+		eeprom.eeWrite(EEData::magnetometerCalibration, data);
 	}
 
 	void registerWrite(uint8_t reg, uint8_t value) {
 		I2Cdev::writeByte(devAddr, reg, value);
 	}
 
-	bool startReadMag() {
-		bool b = I2Cdev::startRead(devAddr, FXOS8700_M_OUT_X_MSB, 6, buffer);
-		if(b) {
-			readPending = true;
-			return true;
-		}
-		return false;
-	}
+	void readMagData(int16_t *mx, int16_t *my, int16_t *mz) {
+		uint8_t buffer[8];
+		I2Cdev::readBytes(devAddr, FXOS8700_M_OUT_X_MSB, 6, buffer);
 
-	bool isMagReady() {
-		if(readPending) {
-			if(!I2Cdev::isBusy()) {
-				readPending = false;
-				return true;
-			}
-		}
-		return false;
-	}
-
-
-	void getMagData(int16_t *mx, int16_t *my, int16_t *mz) {
-	    *mx = (((int16_t)buffer[0]) << 8) | buffer[1];
+		*mx = (((int16_t)buffer[0]) << 8) | buffer[1];
 	    *my = (((int16_t)buffer[2]) << 8) | buffer[3];
 	    *mz = (((int16_t)buffer[4]) << 8) | buffer[5];
 	}
 
 
 private:
-	bool readPending;
-	uint8_t buffer[8];
+
 	uint8_t devAddr;
 
 };

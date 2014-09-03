@@ -10,6 +10,7 @@
 
 #include <string.h>
 #include <xpcc/architecture.hpp>
+#include <xpcc/processing.hpp>
 #include <xpcc/architecture/peripheral/i2c_adapter.hpp>
 
 #define I2C_Master xpcc::lpc17::I2cMaster2
@@ -128,11 +129,19 @@ class I2Cdev {
         * @return Number of bytes read (-1 indicates failure)
         */
         static int8_t readBytes(uint8_t devAddr, uint8_t regAddr, uint8_t length, uint8_t *data, uint16_t timeout = 0) {
-        	xpcc::I2cWriteReadAdapter adapter;
+        	//xpcc::I2cWriteReadAdapter adapter;
+
+        	while(I2C_Master::isBusy()) {
+        		xpcc::TickerTask::yield();
+        	}
 
         	adapter.initialize(devAddr, &regAddr, 1, data, length);
 
-        	while(!I2C_Master::startBlocking(&adapter));
+        	while(!I2C_Master::start(&adapter));
+
+        	while(I2C_Master::isBusy()) {
+        		xpcc::TickerTask::yield();
+        	}
 
         	return adapter.getState() == xpcc::I2cWriteReadAdapter::AdapterState::Idle;
         }
@@ -151,7 +160,11 @@ class I2Cdev {
 
         	adapter.initialize(devAddr, &regAddr, 1, (uint8_t*)data, length*sizeof(uint16_t));
 
-        	while(!I2C_Master::startBlocking(&adapter));
+        	while(!I2C_Master::start(&adapter));
+
+        	while(I2C_Master::isBusy()) {
+        		xpcc::TickerTask::yield();
+        	}
 
         	return adapter.getState() == xpcc::I2cWriteReadAdapter::AdapterState::Idle;
         }
@@ -279,7 +292,11 @@ class I2Cdev {
 
         	adapter.initialize(devAddr, tmp, length+1, 0, 0);
 
-        	while(!I2C_Master::startBlocking(&adapter));
+        	while(!I2C_Master::start(&adapter));
+
+        	while(I2C_Master::isBusy()) {
+        		xpcc::TickerTask::yield();
+        	}
 
         	return adapter.getState() == xpcc::I2cWriteReadAdapter::AdapterState::Idle;
         }
@@ -302,7 +319,11 @@ class I2Cdev {
 
         	adapter.initialize(devAddr, tmp, length*sizeof(uint16_t)+1, 0, 0);
 
-        	while(!I2C_Master::startBlocking(&adapter));
+        	while(!I2C_Master::start(&adapter));
+
+        	while(I2C_Master::isBusy()) {
+        		xpcc::TickerTask::yield();
+        	}
 
         	return adapter.getState() == xpcc::I2cWriteReadAdapter::AdapterState::Idle;
 

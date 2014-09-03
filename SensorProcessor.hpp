@@ -13,13 +13,18 @@
 #include <math.h>
 
 #include "FXOS8700.hpp"
-#include "MPU6050.hpp"
+
+#include "MotionDriver/inv_mpu_dmp_motion_driver.h"
+#include "MotionDriver/inv_mpu.h"
+
 #include "madgwickAHRS.hpp"
 #include "Ultrasonic.hpp"
 #include "eedata.hpp"
 #include "ms5611.hpp"
 
 using namespace xpcc;
+
+typedef Fp32f<30> Q30;
 
 template<typename Filter>
 class VecFilter {
@@ -109,6 +114,7 @@ public:
 };
 
 
+
 class SensorProcessor : TickerTask {
 public:
 
@@ -123,6 +129,11 @@ public:
 
 	xpcc::Quaternion<float> qRotationOffset;
 	xpcc::Quaternion<float> qTrim;
+
+
+	float ahrsHeading;
+	float compassHeading;
+	bool compassValid;
 
 	float height;
 
@@ -143,11 +154,43 @@ public:
 			eeprom.eeWrite(EEData::qRotationOffset, qRotationOffset);
 		}
 
-		mpu.initialize();
-		mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_1000);
-		mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_4);
+		//mpu.initialize();
+		//mpu.setFullScaleGyroRange(MPU6050_GYRO_FS_1000);
+		//mpu.setFullScaleAccelRange(MPU6050_ACCEL_FS_4);
 
-		mpu.setI2CBypassEnabled(true);
+		//mpu.setI2CBypassEnabled(true);
+		mpu_init_structures();
+
+		mpu_init(0);
+
+		long gyro[3], accel[3];
+		mpu_run_self_test(gyro, accel);
+
+		mpu_set_sensors(INV_XYZ_GYRO | INV_XYZ_ACCEL);// enable all of the sensors
+
+		mpu_set_gyro_fsr(2000);
+
+    	//mpu_set_gyro_bias_reg(gyro);
+
+		mpu_configure_fifo(INV_XYZ_GYRO | INV_XYZ_ACCEL);// get accel and gyro data in the FIFO also
+
+		dmp_load_motion_driver_firmware();
+
+		XPCC_LOG_DEBUG .printf("%d %d %d\n", gyro[0], gyro[1], gyro[2]);
+
+		long gyroOffs[3] = {gyro[0]/2000, gyro[1]/2000, gyro[2]/2000};
+		mpu_set_gyro_bias_reg(gyroOffs);
+		//mpu_write_data(0x13, (uint8_t*)gyroOffs, 6);
+
+		dmp_enable_feature(DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_SEND_RAW_ACCEL | DMP_FEATURE_SEND_CAL_GYRO |
+		        DMP_FEATURE_GYRO_CAL);
+
+		dmp_set_fifo_rate(200);
+
+		mpu_set_dmp_state(1);
+		mpu_set_bypass(true);
+
+
 
 		mag.initialize(0x1E);
 
@@ -238,12 +281,149 @@ public:
 		return !gyroCalib.isActive();
 	}
 
+	Vector3f getYPR(Quaternion<float> &q, const Vector3f &gravity) {
+		  Vector3f ypr;
+
+		  ypr[0] = atan2f(2*q[1]*q[2] - 2*q[0]*q[3], 2*q[0]*q[0] + 2*q[1]*q[1] - 1);
+		  ypr[1] = atanf(gravity[0] / sqrtf(gravity[1]*gravity[1] + gravity[2]*gravity[2]));
+		  ypr[2] = atanf(gravity[1] / sqrtf(gravity[0]*gravity[0] + gravity[2]*gravity[2]));
+
+		  return ypr;
+	}
+
+	float getHeading(Quaternion<float> &q) {
+		return -atan2f(2*(q.x*q.y + q.w*q.z), q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z);
+	}
+
+	Vector2f getHeadingVector(Quaternion<float> &q) {
+		Vector2f v(2*(q.x*q.y + q.w*q.z), q.w*q.w + q.x*q.x - q.y*q.y - q.z*q.z);
+		v.normalize();
+		return v;
+	}
+
+	float difangrad(float x, float y)
+	{
+		float arg;
+
+		arg = fmodf(y-x, 2*M_PI);
+		if (arg < 0 )  arg  = arg + 2*M_PI;
+		if (arg > M_PI) arg  = arg - 2*M_PI;
+
+		return arg;
+	}
+
 	void handleTick() {
 		static PeriodicTimer<> tUsnd(20);
 		static PeriodicTimer<> timerRead(5);
+
+		static Timeout<> mpuTimer(4);
+		static PeriodicTimer<> magTimer(20);
+
 		static Timestamp tRead = lpc17::RitClock::now();
 
 		static uint8_t read = 0;
+
+		if(mpuTimer.isExpired()) {
+			int16_t intStatus;
+
+		    mpu_get_int_status(&intStatus);                       // get the current MPU state
+		    if(intStatus & MPU_INT_STATUS_FIFO_OVERFLOW) {
+		    	XPCC_LOG_DEBUG << "FIFO overflow\n";
+		    	mpu_reset_fifo();
+		    } else
+		    if ((intStatus & MPU_INT_STATUS_DMP_0)) {         // return false if definitely not ready yet
+		    	uint32_t timestamp;
+		    	int16_t gyro[3], accel[3];
+		    	int32_t quat[4];
+		    	int16_t sensors;
+		    	uint8_t more;
+
+		    	dmp_read_fifo(gyro, accel, quat, &timestamp, &sensors, &more);
+
+		    	Quaternion<Q30> q;
+		    	q.w.rawVal = quat[0];
+		    	q.x.rawVal = quat[1];
+		    	q.y.rawVal = quat[2];
+		    	q.z.rawVal = quat[3];
+
+		    	qRotation = q;
+
+		    	qRotation = {quat[0], quat[1], quat[2], quat[3]};
+		    	qRotation.normalize();
+
+		    	vGyro.x = gyro[0]/16.4;
+		    	vGyro.y = gyro[1]/16.4;
+		    	vGyro.z = gyro[2]/16.4;
+
+		    	vAcc.x = accel[0]/16384.0;
+		    	vAcc.y = accel[1]/16384.0;
+		    	vAcc.z = accel[2]/16384.0;
+
+		    	Fp32f<16> a = 25.6;
+		    	Fp32f<23> b = 10.0;
+
+		    	a = b;
+
+		    	//XPCC_LOG_DEBUG << timestamp << qRotation << vAcc << vGyro<< endl;
+
+
+		    	//static float headingCompensation;
+		    	//Quaternion<float> tmp(Vector3f(0, 0, 1), headingCompensation);
+
+		    	//qRotation = tmp * qRotation;
+
+		    	//ahrsHeading = getHeading(qRotation);
+
+		    	//float e = difangrad(compassHeading, ahrsHeading);
+
+		    	//headingCompensation += e*0.0005;
+
+		    	if(!more)
+		    		mpuTimer.restart(4);
+		    }
+
+		}
+
+		if(magTimer.isExpired()) {
+			int16_t mx, my, mz;
+
+			mag.readMagData(&mx, &my, &mz);
+
+			vMag.x = -mx * 0.1;
+			vMag.y = -my * 0.1;
+			vMag.z = mz * 0.1;
+
+
+			//compass tilt compensation
+			vMag.rotate(qRotation);
+			//vMag.normalize();
+
+			///
+
+			//XPCC_LOG_DEBUG << vMag << endl;
+
+
+			float angle = 45 * M_PI/180.0;
+			Vector3f axis(0.0,0.0,1.0);
+
+			axis.rotate(qRotation);
+			XPCC_LOG_DEBUG << axis <<endl;
+
+			Quaternion<float> qt(axis, angle);
+
+			XPCC_LOG_DEBUG << qt <<endl;
+//qRotation = qRotation * qt.conjugated();
+			qt = qRotation * qt.conjugated();
+
+			XPCC_LOG_DEBUG << '$';
+			XPCC_LOG_DEBUG .write((uint8_t*)&qRotation, sizeof(float)*4);
+			XPCC_LOG_DEBUG .write((uint8_t*)&qRotation, sizeof(float)*4);
+			XPCC_LOG_DEBUG .write((uint8_t*)&vMag, sizeof(float)*3);
+
+
+			//XPCC_LOG_DEBUG << "hdg " << ahrsHeading*180.0/M_PI << " mag " << compassHeading*180.0/M_PI + 5.5<< endl;
+		}
+
 
 		if(0 && tUsnd.isExpired()) {
 			//static xpcc::filter::LPF<uint32_t> filter(4);
@@ -304,7 +484,7 @@ public:
 //			alt.ping();
 		}
 
-		if(timerRead.isExpired() && mpu.isMotionDataReady() && mag.isMagReady()) {
+		if(0 && timerRead.isExpired()) {
 			read = 0; //reset read order
 
 			float dt = (lpc17::RitClock::now() - tRead).getTime() / (float)SystemCoreClock;
@@ -312,17 +492,15 @@ public:
 
 			int16_t ax, ay, az, gx, gy, gz, mx, my, mz;
 
-			mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
-			mag.getMagData(&mx, &my, &mz);
+			//mpu.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
 
-			vMag.x = mx * 0.1;
-			vMag.y = my * 0.1;
+
+
+			vMag.x = -mx * 0.1;
+			vMag.y = -my * 0.1;
 			vMag.z = mz * 0.1;
 			//XPCC_LOG_DEBUG .printf("%d %d %d %d %d %d\n", ax, ay, az, gx, gy, gz);
 
-			//XPCC_LOG_DEBUG .printf("%d %d %d\n", mx, my, mz);
-			//accel.getXYZ(vAcc);
-			//gyro.getXYZ(vGyro);
 
 			vGyro.x = -gx / 32.8;
 			vGyro.y = -gy / 32.8;
@@ -332,8 +510,6 @@ public:
 			vAcc.y = -ay / 8192.0;
 			vAcc.z = az / 8192.0;
 
-			//accMedian.push(vAcc);
-			//accMedian.getValue(vAcc);
 
 			vGyro *= M_PI/180.0; // convert reading to rad/s
 
@@ -379,31 +555,31 @@ public:
 			}
 
 
-			if(gyroCalib.isActive()) {
-				accZero += vAcc;
-				gyroOffset += vGyro;
-				numSamples++;
-			} else {
-				vGyro -= gyroOffset;
-
-				if(tCalibrated) {
-					static Vector3f sum;
-
-					sum += vGyro;
-					if(xpcc::Clock::now().getTime() - tCalibrated > 500) {
-						ledGreen::reset();
-
-						for(int i = 0; i < 3; i++) {
-							if(fabs(sum[i]) > 0.03) {
-								zero();
-								break;
-							}
-						}
-
-						sum = 0;
-						tCalibrated = 0;
-					}
-				}
+//			if(gyroCalib.isActive()) {
+//				accZero += vAcc;
+//				gyroOffset += vGyro;
+//				numSamples++;
+//			} else {
+//				vGyro -= gyroOffset;
+//
+//				if(tCalibrated) {
+//					static Vector3f sum;
+//
+//					sum += vGyro;
+//					if(xpcc::Clock::now().getTime() - tCalibrated > 500) {
+//						ledGreen::reset();
+//
+//						for(int i = 0; i < 3; i++) {
+//							if(fabs(sum[i]) > 0.03) {
+//								zero();
+//								break;
+//							}
+//						}
+//
+//						sum = 0;
+//						tCalibrated = 0;
+//					}
+//				}
 
 
 	//			static Average<Vector3f> avg;
@@ -442,12 +618,12 @@ public:
 	//				vGyroRot = vGyro;
 	//			}
 
-				vAcc.rotate(qRotationOffset);
-				vGyro.rotate(qRotationOffset);
+				//vAcc.rotate(qRotationOffset);
+				//vGyro.rotate(qRotationOffset);
 
-				madgwickAHRSUpdateIMU(vGyro, vAcc, qRotation, dt);
+				//madgwickAHRSUpdateIMU(vGyro, vAcc, qRotation, dt);
 
-				static filter::LPF<Vector3f> accF(10);
+				//static filter::LPF<Vector3f> accF(10);
 
 				//static VecFilter<filter::IIR<float, 30>> gF;
 
@@ -455,12 +631,12 @@ public:
 //				gF.append(g);
 //				gF.getValue(g);
 
-				accF.append(vAcc);
-				vAcc = accF.getValue();
+				//accF.append(vAcc);
+				//vAcc = accF.getValue();
 
-				dynamicAcc = vAcc.rotated(qRotation);
-				dynamicAcc.z -= accZero.z;
-				dynamicAcc *= 9.8;
+				//dynamicAcc = vAcc.rotated(qRotation);
+				//dynamicAcc.z -= accZero.z;
+				//dynamicAcc *= 9.8;
 
 				//dynamicAcc = (vAcc - g*gMagnitude) * 10;
 	//			if(fabs(dynamicAcc.x) < 0.1) {
@@ -472,27 +648,13 @@ public:
 	//			if(fabs(dynamicAcc.z) < 0.1) {
 	//				dynamicAcc.z = 0;
 	//			}
-				velocity += dynamicAcc * dt;
-				velocity *= 0.998;
+				//velocity += dynamicAcc * dt;
+				//velocity *= 0.998;
 
-				onSensorsUpdated(dt);
-			}
+				//onSensorsUpdated(dt);
+			//}
 		}
 
-		//read sensors in round robin fashion
-		switch(read) {
-		case 0:
-			if(mpu.startReadMotion6()) {
-				read++;
-			}
-			break;
-		case 1:
-			if(mag.startReadMag()) {
-				read++;
-			}
-			break;
-
-		}
 
 	}
 
@@ -513,7 +675,7 @@ public:
 	xpcc::Vector3f gyroOffset;
 
 
-	MPU6050 mpu;
+	//MPU6050 mpu;
 	FXOS8700 mag;
 
 	Ultrasonic<usnd0_trig, usnd0_echo, lpc17::RitClock> alt;

@@ -9,6 +9,7 @@
 #define EEDATA_HPP_
 
 #include "eeprom.hpp"
+#include <xpcc/math.hpp>
 
 struct CalibrationData {
 	CalibrationData() : min(0), max(0) {};
@@ -30,6 +31,8 @@ struct EEData {
 	float heightPIDparams[4]; //p, i, d, maxoutput
 
 	float yawGain;
+
+	uint8_t magnetometerCalibration[6];
 };
 
 

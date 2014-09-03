@@ -8,6 +8,8 @@
 #include <xpcc/debug.hpp>
 #include <xpcc/architecture.hpp>
 
+
+
 enum { r0, r1, r2, r3, r12, lr, pc, psr};
 
 void boot_jump( uint32_t address ){
@@ -32,6 +34,8 @@ extern "C" void BusFault_Handler(void)
 		       "B Hard_Fault_Handler");
 }
 
+uint32_t crashData[3] __attribute__((section(".noinit")));
+
 extern "C"
 void Hard_Fault_Handler(uint32_t stack[]) {
 
@@ -47,6 +51,10 @@ void Hard_Fault_Handler(uint32_t stack[]) {
 	XPCC_LOG_DEBUG .printf("lr  = 0x%08x\n", stack[lr]);
 	XPCC_LOG_DEBUG .printf("pc  = 0x%08x\n", stack[pc]);
 	XPCC_LOG_DEBUG .printf("psr = 0x%08x\n", stack[psr]);
+
+	crashData[0] = 1;
+	crashData[1] = stack[pc];
+	crashData[2] = stack[lr];
 
 	while(1);
 

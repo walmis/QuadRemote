@@ -644,7 +644,7 @@ protected:
 		}
 		else if(cmp(argv[0], "test")) {
 
-			XPCC_LOG_DEBUG .printf("%d\n", qController.mpu.getAccelerationZ());
+			//XPCC_LOG_DEBUG .printf("%d\n", qController.mpu.getAccelerationZ());
 		}
 		else if(cmp(argv[0], "i2r")) {
 			uint8_t addr = to_int(argv[1]);
@@ -750,6 +750,22 @@ protected:
 		else if(cmp(argv[0], "flash")) {
 
 			LPC_WDT->WDFEED = 0x56;
+		}
+		else if(cmp(argv[0], "compass_stop")) {
+
+			qController.mag.stopCalibration();
+		}
+		else if(cmp(argv[0], "compass_start")) {
+
+			qController.mag.startCalibration();
+		}
+		else if(cmp(argv[0], "dump")) {
+			extern uint32_t crashData[3];
+			if(crashData[0]) {
+				XPCC_LOG_DEBUG .printf("pc  = 0x%08x\n", crashData[1]);
+				XPCC_LOG_DEBUG .printf("lr  = 0x%08x\n", crashData[2]);
+				delay_ms(500);
+			}
 		}
 	}
 
@@ -959,9 +975,12 @@ public:
 QuadWireless radio;
 SendTask sender(&radio);
 
-
+GPIO__OUTPUT(test, 0, 16);
 
 void idle() {
+	test::reset();
+	__WFI();
+	test::set();
 	static PeriodicTimer<> t(500);
 	static bool eeReady;
 
@@ -976,7 +995,27 @@ void idle() {
 	}
 }
 
+void __attribute((noinline, used)) testas() {
+
+	Quaternion<Fp32f<29>> q;
+	q.w = (int16_t)LPC_UART0->ACR;
+	q.x =(int16_t)LPC_UART0->ACR;
+	q.y = (int16_t)LPC_UART0->ACR;
+	q.z = 0.5;
+	q.normalize();
+
+	Quaternion<Fp32f<29>> q2 = q;
+
+	q = q * q2.conjugated();
+
+	q.w = 1 - 2*(q.w*q.w);
+
+	XPCC_LOG_DEBUG << "Test" << std::sqrt(q.w) << endl;
+
+}
+
 int main() {
+	test::setOutput(false);
 	//debugIrq = true;
 	ledRed::setOutput(false);
 	ledGreen::setOutput(false);
@@ -993,6 +1032,8 @@ int main() {
 	SpiMaster1::initialize(SpiMaster1::Mode::MODE_0, 8000000);
 
 	xpcc::Random::seed();
+
+	testas();
 
 	Pinsel::setFunc(0, 10, 2);
 	Pinsel::setFunc(0, 11, 2);

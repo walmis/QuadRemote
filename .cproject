@@ -42,12 +42,13 @@
 									<listOptionValue builtIn="false" value="__ARM_LPC17XX__"/>
 								</option>
 								<option id="gnu.c.compiler.option.optimization.flags.1821896242" name="Other optimization flags" superClass="gnu.c.compiler.option.optimization.flags" useByScannerDiscovery="false" value="-mlong-calls" valueType="string"/>
+								<option id="gnu.c.compiler.option.debugging.other.263012627" name="Other debugging flags" superClass="gnu.c.compiler.option.debugging.other" useByScannerDiscovery="false" value="-g" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.990257984" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.734776083" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler">
 								<option id="gnu.cpp.compiler.option.optimization.level.214688961" name="Optimization Level" superClass="gnu.cpp.compiler.option.optimization.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.optimization.level.size" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.debugging.level.198500155" name="Debug Level" superClass="gnu.cpp.compiler.option.debugging.level" useByScannerDiscovery="false" value="gnu.cpp.compiler.debugging.level.none" valueType="enumerated"/>
-								<option id="gnu.cpp.compiler.option.other.other.359987823" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" useByScannerDiscovery="false" value="-Wno-write-strings -c -fmessage-length=0 -mthumb -ffunction-sections -fdata-sections  -mcpu=cortex-m3 -fno-rtti -fno-exceptions" valueType="string"/>
+								<option id="gnu.cpp.compiler.option.other.other.359987823" name="Other flags" superClass="gnu.cpp.compiler.option.other.other" useByScannerDiscovery="false" value="-Wno-write-strings -c -fmessage-length=0 -mthumb -ffunction-sections -fdata-sections  -mcpu=cortex-m3 -fno-rtti -fno-exceptions -save-temps" valueType="string"/>
 								<option id="gnu.cpp.compiler.option.include.paths.1280403109" name="Include paths (-I)" superClass="gnu.cpp.compiler.option.include.paths" useByScannerDiscovery="false" valueType="includePath">
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/xpcc}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/xpcc/ext/lpc17xx/cmsis}&quot;"/>
@@ -63,6 +64,7 @@
 								<option id="gnu.cpp.compiler.option.optimization.flags.1359951643" name="Other optimization flags" superClass="gnu.cpp.compiler.option.optimization.flags" useByScannerDiscovery="false" value="-mlong-calls -fsingle-precision-constant  -ffast-math -finline-functions -funroll-loops" valueType="string"/>
 								<option id="gnu.cpp.compiler.option.dialect.std.1853116683" name="Language standard" superClass="gnu.cpp.compiler.option.dialect.std" useByScannerDiscovery="true" value="gnu.cpp.compiler.dialect.default" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.dialect.flags.1942650169" name="Other dialect flags" superClass="gnu.cpp.compiler.option.dialect.flags" useByScannerDiscovery="true" value="-std=gnu++11" valueType="string"/>
+								<option id="gnu.cpp.compiler.option.debugging.other.2059982421" name="Other debugging flags" superClass="gnu.cpp.compiler.option.debugging.other" useByScannerDiscovery="false" value="" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.499278313" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cross.c.linker.2102665116" name="Cross GCC Linker" superClass="cdt.managedbuild.tool.gnu.cross.c.linker">
