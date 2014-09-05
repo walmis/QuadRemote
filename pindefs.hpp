@@ -13,23 +13,24 @@
 
 //GPIO__INPUT(progPin, 2, 0);
 
-GPIO__OUTPUT(usbConnPin, 1, 30);
+GPIO__OUTPUT(_ledGreen, 0, 15);
+GPIO__OUTPUT(_ledYellow, 0, 17);
+GPIO__OUTPUT(_ledRed, 0, 22);
 
-GPIO__OUTPUT(ledRed, 0, 25);
-GPIO__OUTPUT(ledGreen, 0, 26);
+typedef xpcc::gpio::Invert<_ledRed> ledRed;
+typedef xpcc::gpio::Invert<_ledGreen> ledGreen;
+typedef xpcc::gpio::Invert<_ledYellow> ledYellow;
 
-GPIO__OUTPUT(usnd0_trig, 1, 28);
-GPIO__INPUT(usnd0_echo, 0, 0);
+GPIO__OUTPUT(usbConnPin, 1, 18);
 
-GPIO__OUTPUT(radioRst, 4, 28);
-GPIO__OUTPUT(radioSel, 2, 0);
-GPIO__IO(radioSlpTr, 0, 6);
-GPIO__INPUT(radioIrq, 2, 1);
+GPIO__OUTPUT(lcd_e, 1, 4);
+GPIO__OUTPUT(lcd_rs, 1, 1);
 
-GPIO__INPUT(pwmch1, 0, 16);
-GPIO__INPUT(pwmch2, 0, 15);
-GPIO__INPUT(pwmch3, 0, 17);
-GPIO__INPUT(pwmch4, 0, 18);
-GPIO__INPUT(pwmch5, 0, 22);
+GPIO__IO(lcd_d4, 1, 14);
+GPIO__IO(lcd_d5, 1, 10);
+GPIO__IO(lcd_d6, 1, 9);
+GPIO__IO(lcd_d7, 1, 8);
+
+typedef xpcc::gpio::Nibble<lcd_d7, lcd_d6, lcd_d5, lcd_d4> lcd_data;
 
 #endif /* PINDEFS_HPP_ */
