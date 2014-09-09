@@ -48,7 +48,7 @@ protected:
 			for(int i = 0; i < 5; i++) {
 				int16_t adc = ADC::getData(i+2);
 
-				channels[i] = (channels[i]*4-channels[i] + adc+(4/2))/4;
+				channels[i] = (channels[i]*8-channels[i] + adc+(8/2))/8;
 			}
 		}
 	}
