@@ -36,4 +36,8 @@ typedef xpcc::gpio::Nibble<lcd_d7, lcd_d6, lcd_d5, lcd_d4> lcd_data;
 GPIO__IO(radio_sel, 2, 1);
 GPIO__OUTPUT(radio_irq, 2, 0);
 
+//si4432 radio
+GPIO__IO(radio_sel, 0, 16);
+GPIO__IO(radio_irq, 0, 22);
+
 #endif /* PINDEFS_HPP_ */
