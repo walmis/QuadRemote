@@ -36,7 +36,7 @@ void delay(uint32_t millis) {
 }
 
 void yield() {
-
+	xpcc::TickerTask::yield();
 }
 
 uint32_t millis() {
