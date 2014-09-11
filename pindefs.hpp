@@ -10,6 +10,7 @@
 
 #include <xpcc/architecture.hpp>
 
+#define AD_CH_VBAT 7
 
 //GPIO__INPUT(progPin, 2, 0);
 
@@ -30,6 +31,20 @@ GPIO__IO(lcd_d4, 1, 14);
 GPIO__IO(lcd_d5, 1, 10);
 GPIO__IO(lcd_d6, 1, 9);
 GPIO__IO(lcd_d7, 1, 8);
+
+GPIO__INPUT(btnL, 2, 4);
+GPIO__INPUT(btnU, 2, 5);
+GPIO__INPUT(btnR, 2, 6);
+GPIO__INPUT(btnD, 2, 7);
+
+#define BUTTON_LEFT (1<<3)
+#define BUTTON_RIGHT (1<<2)
+#define BUTTON_UP (1<<1)
+#define BUTTON_DN (1<<0)
+
+typedef xpcc::gpio::Nibble<btnL, btnR, btnU, btnD> joystickBtns;
+
+GPIO__INPUT(auxSw5, 2, 8);
 
 typedef xpcc::gpio::Nibble<lcd_d7, lcd_d6, lcd_d5, lcd_d4> lcd_data;
 

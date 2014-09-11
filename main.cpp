@@ -9,6 +9,7 @@
 
 #include <xpcc/architecture.hpp>
 #include <xpcc/processing.hpp>
+#include <xpcc/ui/button_group.hpp>
 
 #include "pindefs.hpp"
 
@@ -95,11 +96,8 @@ public:
 
 Radio radio;
 
-
-
 #define _DEBUG
 //#define _SER_DEBUG
-
 
 USBSerial device(0xffff);
 xpcc::IOStream stream(device);
@@ -138,16 +136,117 @@ typedef Hd44780<lcd_e, gpio::Unused, lcd_rs, lcd_data> Hd44780Lcd;
 Hd44780Lcd lcd(16, 2);
 Axes axes;
 
+class Battery {
+public:
+	/* voltages (millivolt) of 0%, 10%, ... 100% */
+	const unsigned short percent_to_volt_discharge[2][11] = {
+	/* measured values */
+	{ 2800 / 3, 3250 / 3, 3410 / 3, 3530 / 3, 3640 / 3, 3740 / 3, 3850 / 3, 3950
+			/ 3, 4090 / 3, 4270 / 3, 4750 / 3 }, /* Alkaline */
+	{ 3100 / 3, 3550 / 3, 3630 / 3, 3690 / 3, 3720 / 3, 3740 / 3, 3760 / 3, 3780
+			/ 3, 3800 / 3, 3860 / 3, 4050 / 3 } /* NiMH */
+	};
+
+
+	void update() {
+
+		int16_t adc = ADC::getData(AD_CH_VBAT);
+
+		//4096 - 3.3V
+		//30k 8.2k
+
+		const Fp32f<16> x = (Fp32f<16>(4096) / Fp32f<16>(3.3f));
+
+		Fp32f<16> bat = (adc / x) * 4.651f;
+
+		packVoltage = (packVoltage*3 + bat + 0.01f) / 4;
+
+		cellVoltage =  packVoltage / 8;
+
+		XPCC_LOG_DEBUG << adc << " " << bat << endl;
+	}
+
+	int getBatteryPercent() {
+
+	}
+
+	bool onUSBPower() {
+
+	}
+
+	Fp32f<16> getPackVoltage(){
+		return packVoltage;
+	}
+
+	Fp32f<16> getCellVoltage(){
+		return cellVoltage;
+	}
+
+private:
+	Fp32f<16> cellVoltage;
+	Fp32f<16> packVoltage;
+
+	/* look into the percent_to_volt_* table and get a realistic battery level */
+	int voltage_to_percent(int voltage, const short* table) {
+		if (voltage <= table[0]) {
+			return 0;
+		} else if (voltage >= table[10]) {
+			return 100;
+		} else {
+			/* search nearest value */
+			int i = 0;
+			while (i < 10 && table[i + 1] < voltage)
+				i++;
+			/* interpolate linear between the smaller and greater value */
+			/* Tens digit, 10% per entry, ones digit: interpolated */
+			return i * 10
+					+ (voltage - table[i]) * 10 / (table[i + 1] - table[i]);
+		}
+	}
+};
+
+Battery battery;
 
 class MyDisplay : public LcdDisplay<Hd44780Lcd> {
 public:
-	MyDisplay() : LcdDisplay<Hd44780Lcd>(&lcd) {
+	MyDisplay() : LcdDisplay<Hd44780Lcd>(&lcd), buttons(0xF) {
 
+	}
+
+	void handleTick() override {
+		LcdDisplay<Hd44780Lcd>::handleTick();
+
+		static PeriodicTimer<> t(10);
+		if(t.isExpired()) {
+			updateButtons();
+		}
+	}
+
+	void updateButtons() {
+		buttons.update(joystickBtns::read());
+
+		if(buttons.isPressed(BUTTON_UP)) {
+			page--;
+		}
+
+		if(buttons.isPressed(BUTTON_DN)) {
+			page++;
+		}
 	}
 
 	void getPage(uint8_t page) {
 		switch(page) {
+		default:
+			setPage(0);
+
 		case 0:
+			battery.update();
+
+			line[0].addTextField("SYS BAT:");
+			line[0].addField(battery.getPackVoltage(), 4);
+
+			break;
+		case 1:
 			line[0].addIntegerField(axes.getChannel(0), 5);
 			line[0].addIntegerField(axes.getChannel(1), 5);
 			line[0].addIntegerField(axes.getChannel(2), 5);
@@ -155,8 +254,13 @@ public:
 			line[1].addIntegerField(axes.getChannel(3), 5);
 			line[1].addIntegerField(axes.getChannel(4), 5);
 
+			line[1].addIntegerField(btnL::read(), 2);
+			line[1].addIntegerField(btnR::read(), 1);
+			line[1].addIntegerField(btnU::read(), 1);
+			line[1].addIntegerField(btnD::read(), 1);
+			line[1].addIntegerField(auxSw5::read(), 1);
 			break;
-		case 1:
+		case 2:
 		{
 			int rssi = radio.lastRssi();
 
@@ -188,6 +292,7 @@ public:
 		}
 	}
 
+	xpcc::ButtonGroup<> buttons;
 };
 
 MyDisplay disp;
@@ -261,7 +366,6 @@ protected:
 
 		}
 	}
-
 };
 
 
@@ -276,6 +380,10 @@ int main() {
 
 	ADC::init(50000);
 	ADC::burstMode(true);
+
+	ADC::enableChannel(AD_CH_VBAT); //VBAT
+	Pinsel::setFunc(0, 2, 2); //AD0[7]
+
 
 	Uart2::init(460800);
 

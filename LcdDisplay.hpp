@@ -42,6 +42,15 @@ public:
 		addField(str, fieldWidth);
 	}
 
+	template <typename T>
+	void addField(T value, uint8_t fieldWidth = 0) {
+		StringStream<16> str;
+
+		str << value;
+
+		addField(str, fieldWidth);
+	}
+
 	void addFloatField(float n) {
 
 
