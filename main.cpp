@@ -91,6 +91,21 @@ public:
     	return mode() == RHModeIdle;
     }
 
+    uint8_t spiRead(uint8_t reg) {
+
+    }
+
+    uint8_t spiWrite(uint8_t reg, uint8_t val) {
+
+    }
+
+    uint8_t spiBurstWrite(uint8_t reg, const uint8_t* src, uint8_t len) {
+
+    }
+
+    uint8_t spiBurstRead(uint8_t reg, uint8_t* dest, uint8_t len) {
+
+    }
 };
 
 
@@ -147,7 +162,6 @@ public:
 			/ 3, 3800 / 3, 3860 / 3, 4050 / 3 } /* NiMH */
 	};
 
-
 	void update() {
 
 		int16_t adc = ADC::getData(AD_CH_VBAT);
@@ -155,23 +169,24 @@ public:
 		//4096 - 3.3V
 		//30k 8.2k
 
-		const Fp32f<16> x = (Fp32f<16>(4096) / Fp32f<16>(3.3f));
+		float bat = (adc / (4096 / 3.3f)) * 4.651f;
 
-		Fp32f<16> bat = (adc / x) * 4.651f;
-
-		packVoltage = (packVoltage*3 + bat + 0.01f) / 4;
-
+		packVoltage = (packVoltage*4 + bat) / 5;
 		cellVoltage =  packVoltage / 8;
 
-		XPCC_LOG_DEBUG << adc << " " << bat << endl;
+		//XPCC_LOG_DEBUG << adc << " "<< packVoltage << endl;
 	}
 
 	int getBatteryPercent() {
-
+		return voltage_to_percent(cellVoltage*1000,
+				percent_to_volt_discharge[1]);
 	}
 
 	bool onUSBPower() {
-
+		if(packVoltage < 4.5 && packVoltage > 4.1) {
+			return true;
+		}
+		return false;
 	}
 
 	Fp32f<16> getPackVoltage(){
@@ -183,11 +198,11 @@ public:
 	}
 
 private:
-	Fp32f<16> cellVoltage;
-	Fp32f<16> packVoltage;
+	float cellVoltage;
+	float packVoltage;
 
 	/* look into the percent_to_volt_* table and get a realistic battery level */
-	int voltage_to_percent(int voltage, const short* table) {
+	int voltage_to_percent(int voltage, const unsigned short* table) {
 		if (voltage <= table[0]) {
 			return 0;
 		} else if (voltage >= table[10]) {
@@ -242,8 +257,17 @@ public:
 		case 0:
 			battery.update();
 
-			line[0].addTextField("SYS BAT:");
-			line[0].addField(battery.getPackVoltage(), 4);
+			line[0].addTextField("SYS");
+
+			if(!battery.onUSBPower()) {
+				line[1].addField(battery.getBatteryPercent(), 3);
+				line[1].addField("% ");
+
+				line[1].addField(battery.getPackVoltage(), 4);
+				line[1].addField('V');
+			} else {
+				line[1].addField("VUSB");
+			}
 
 			break;
 		case 1:
