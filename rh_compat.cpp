@@ -36,7 +36,7 @@ void delay(uint32_t millis) {
 }
 
 void yield() {
-	xpcc::TickerTask::yield();
+	//xpcc::TickerTask::yield();
 }
 
 uint32_t millis() {
@@ -101,7 +101,7 @@ public:
 
 	uint8_t transfer(uint8_t data) {
 		//printf("spi write %02x\n", data);
-		return xpcc::lpc17::SpiMaster1::write(data);
+		return radioSpiMaster::write(data);
 	}
 };
 

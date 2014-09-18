@@ -49,6 +49,13 @@ public:
 
 	}
 
+	void handleInit() {
+		init();
+		setFrequency(422.0, 0.05);
+		setModemConfig(RH_RF22::FSK_Rb125Fd125);
+		setModeRx();
+	}
+
 	void handleTick() {
 		if(!transmitting()) {
 
@@ -58,7 +65,7 @@ public:
 				uint8_t buf[255];
 				uint8_t len;
 				recv(buf, &len);
-
+				XPCC_LOG_DEBUG .dump_buffer(buf, len);
 			}
 		}
 	}
@@ -76,7 +83,7 @@ public:
     }
 
     void sendTest() {
-    	uint8_t data[] = "Hello World!Hello World!Hello World!Hello World!Hello World!Hello World!Hello World!Hello World!";
+    	uint8_t data[254] = "Hello World!Hello World!Hello World!Hello World!Hello World!Hello World!Hello World!Hello World!";
 
     	send(data, sizeof(data));
     	waitPacketSent();
@@ -91,19 +98,49 @@ public:
     	return mode() == RHModeIdle;
     }
 
-    uint8_t spiRead(uint8_t reg) {
+private:
+    uint8_t spiBurstWrite0(uint8_t reg, const uint8_t* src, uint8_t len) {
+        uint8_t status = 0;
 
+        digitalWrite(_slaveSelectPin, LOW);
+        status = radioSpiMaster::write(reg | RH_SPI_WRITE_MASK);
+
+        while(len) {
+        	uint8_t written = radioSpiMaster::burstWrite(src, len);
+        	while(!radioSpiMaster::txFifoEmpty()) {
+        		//TickerTask::yield();
+        	}
+        	len -= written;
+        	src += written;
+        }
+        radioSpiMaster::flushRx();
+        digitalWrite(_slaveSelectPin, HIGH);
+        return status;
     }
 
-    uint8_t spiWrite(uint8_t reg, uint8_t val) {
+    uint8_t spiBurstRead0(uint8_t reg, uint8_t* dest, uint8_t len) {
+        uint8_t status = 0;
 
-    }
+        digitalWrite(_slaveSelectPin, LOW);
 
-    uint8_t spiBurstWrite(uint8_t reg, const uint8_t* src, uint8_t len) {
+        status = radioSpiMaster::write(reg & ~RH_SPI_WRITE_MASK); // Send the start address with the write mask off
 
-    }
+        radioSpiMaster::flushRx();
 
-    uint8_t spiBurstRead(uint8_t reg, uint8_t* dest, uint8_t len) {
+        while(len) {
+        	uint8_t n = radioSpiMaster::burstWrite(dest, len);
+        	//wait until transfer finishes
+        	while(radioSpiMaster::isBusy()) {
+        		//TickerTask::yield();
+        	}
+        	radioSpiMaster::burstRead(dest, len);
+
+        	len -= n;
+        	dest += n;
+        }
+        digitalWrite(_slaveSelectPin, HIGH);
+
+        return status;
 
     }
 };
@@ -171,7 +208,12 @@ public:
 
 		float bat = (adc / (4096 / 3.3f)) * 4.651f;
 
-		packVoltage = (packVoltage*4 + bat) / 5;
+		if(packVoltage < 0.1) {
+			packVoltage = bat;
+		} else {
+			packVoltage = (packVoltage*50 + bat) / 51;
+		}
+
 		cellVoltage =  packVoltage / 8;
 
 		//XPCC_LOG_DEBUG << adc << " "<< packVoltage << endl;
@@ -288,7 +330,7 @@ public:
 		{
 			int rssi = radio.lastRssi();
 
-			int noise = ((int)radio.rssiRead()*100 / 190) - 127;
+			int noise;// = ((int)radio.rssiRead()*100 / 190) - 127;
 
 			int rxe = radio.getRxBad();
 			static int txe = 0;
@@ -345,42 +387,24 @@ protected:
 
 			ios << fwversion << endl;
 		}
-		else if(cmp(argv[0], "radio")) {
-			printf("init radio\n");
-			if(!radio.init()) {
-				printf("radio init failed\n");
-			} else {
-				printf("Radio init ok!\n");
-			}
 
-			radio.setModeRx();
-
-		}
 		else if(cmp(argv[0], "rssi")) {
 
 			printf("rssi %d\n", radio.rssiRead() / 2 - 120 );
 		}
-		else if(cmp(argv[0], "test")) {
-			printf("test\n");
-			{
-				PROFILE() ;
-				while (!(LPC_UART2->LSR & UART_LSR_THRE));
-				for(int i = 0; i < 32; i++ ) {
-					Uart2::write('a');
-				}
 
-			}
-			printf("fifo %d\n", LPC_UART2->FIFOLVL);
-
-		}
 		else if(cmp(argv[0], "send")) {
 			{
 				PROFILE();
 				radio.sendTest();
 			}
-
-
 		}
+		else if(cmp(argv[0], "freq")) {
+			int f = to_int(argv[1]);
+
+			radio.setFrequency((float)f, 0.05);
+		}
+
 
 
 		else if(cmp(argv[0], "page")) {
@@ -435,9 +459,6 @@ int main() {
 
 	delay_ms(50);
 	lcd.initialize();
-
-	radio.init();
-	radio.setModeRx();
 
 	ledRed::setOutput(1);
 
