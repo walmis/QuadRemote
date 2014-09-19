@@ -21,9 +21,6 @@ public:
 
 	void handleInit() {
 		init();
-		setFrequency(422.0, 0.05);
-		setModemConfig(RH_RF22::FSK_Rb57_6Fd28_8);
-		setModeRx();
 	}
 
     inline uint16_t getRxBad() {
@@ -36,14 +33,6 @@ public:
 
     inline uint16_t getTxGood() {
     	return _txGood;
-    }
-
-    void sendTest() {
-    	uint8_t data[254] = "Hello World!Hello World!Hello World!Hello World!Hello World!Hello World!Hello World!Hello World!";
-
-    	send(data, sizeof(data));
-    	waitPacketSent();
-
     }
 
     bool transmitting() {

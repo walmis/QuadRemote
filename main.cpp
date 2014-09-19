@@ -35,6 +35,7 @@
 #include "Axes.hpp"
 
 #include "radio.hpp"
+#include "battery.hpp"
 
 #include "LcdDisplay.hpp"
 
@@ -43,12 +44,15 @@ using namespace xpcc::lpc17;
 
 const char fwversion[16] __attribute__((used, section(".fwversion"))) = "QuadRmV0.1";
 
-
-
+enum PacketType {
+	RC_PACKET,
+	RF_PARAM_SET_PACKET
+};
 
 class RemoteControl : public Radio {
 public:
 	struct RCPacket {
+		uint8_t id;
 		int16_t yawCh;
 		int16_t pitchCh;
 		int16_t rollCh;
@@ -65,24 +69,43 @@ public:
 	ProfileTimer p;
 
 protected:
+
+	void handleInit() {
+		Radio::handleInit();
+		setFrequency(429.0f, 0.05f);
+		setTxPower(0);
+	                                    //  1c,   1f,   20,   21,   22,   23,   24,   25,
+		const RH_RF22::ModemConfig cfg = { 0x99, 0x03, 0x6B, 0x01, 0x31, 0xd6, 0x01, 0x34,
+										//  2c,   2d,   2e,   58,   69,   6e,   6f,   70,   71,   72
+										   0x40, 0x0a, 0x2d, 0x80, 0x60, 0x0e, 0x56, 0x04, 0x2B, 0x5A }; // GFSK 56, 56
+
+		//setModemRegisters(&cfg);
+		setModemConfig(RH_RF22::GFSK_Rb57_6Fd28_8);
+
+	}
+
 	void handleTick() {
 
 		static PeriodicTimer<> t(10);
 
-		if(t.isExpired() && !transmitting()) {
-			noiseFloor = rssiRead();
+		if(t.isExpired()) {
+			if(!transmitting()) {
 
-			p.start();
-			send((uint8_t*)(&rcData), sizeof(rcData));
-			sending = true;
+				noiseFloor = ((uint16_t)noiseFloor*5 + rssiRead())/6;
+
+				p.start();
+				send((uint8_t*)(&rcData), sizeof(rcData));
+
+				sending = true;
+			} else {
+
+			}
 		}
 
 		if(sending && !transmitting()) {
 			sending = false;
 			p.end();
 			setModeRx();
-
-
 		}
 	}
 	bool sending;
@@ -132,79 +155,7 @@ typedef Hd44780<lcd_e, gpio::Unused, lcd_rs, lcd_data> Hd44780Lcd;
 Hd44780Lcd lcd(16, 2);
 Axes axes;
 
-class Battery {
-public:
-	/* voltages (millivolt) of 0%, 10%, ... 100% */
-	const unsigned short percent_to_volt_discharge[2][11] = {
-	/* measured values */
-	{ 2800 / 3, 3250 / 3, 3410 / 3, 3530 / 3, 3640 / 3, 3740 / 3, 3850 / 3, 3950
-			/ 3, 4090 / 3, 4270 / 3, 4750 / 3 }, /* Alkaline */
-	{ 3100 / 3, 3550 / 3, 3630 / 3, 3690 / 3, 3720 / 3, 3740 / 3, 3760 / 3, 3780
-			/ 3, 3800 / 3, 3860 / 3, 4050 / 3 } /* NiMH */
-	};
 
-	void update() {
-
-		int16_t adc = ADC::getData(AD_CH_VBAT);
-
-		//4096 - 3.3V
-		//30k 8.2k
-
-		float bat = (adc / (4096 / 3.3f)) * 4.651f;
-
-		if(packVoltage < 0.1) {
-			packVoltage = bat;
-		} else {
-			packVoltage = (packVoltage*50 + bat) / 51;
-		}
-
-		cellVoltage =  packVoltage / 8;
-
-		//XPCC_LOG_DEBUG << adc << " "<< packVoltage << endl;
-	}
-
-	int getBatteryPercent() {
-		return voltage_to_percent(cellVoltage*1000,
-				percent_to_volt_discharge[1]);
-	}
-
-	bool onUSBPower() {
-		if(packVoltage < 4.5 && packVoltage > 4.1) {
-			return true;
-		}
-		return false;
-	}
-
-	Fp32f<16> getPackVoltage(){
-		return packVoltage;
-	}
-
-	Fp32f<16> getCellVoltage(){
-		return cellVoltage;
-	}
-
-private:
-	float cellVoltage;
-	float packVoltage;
-
-	/* look into the percent_to_volt_* table and get a realistic battery level */
-	int voltage_to_percent(int voltage, const unsigned short* table) {
-		if (voltage <= table[0]) {
-			return 0;
-		} else if (voltage >= table[10]) {
-			return 100;
-		} else {
-			/* search nearest value */
-			int i = 0;
-			while (i < 10 && table[i + 1] < voltage)
-				i++;
-			/* interpolate linear between the smaller and greater value */
-			/* Tens digit, 10% per entry, ones digit: interpolated */
-			return i * 10
-					+ (voltage - table[i]) * 10 / (table[i + 1] - table[i]);
-		}
-	}
-};
 
 Battery battery;
 
@@ -338,12 +289,6 @@ protected:
 			printf("rssi %d\n", radio.rssiRead() / 2 - 120 );
 		}
 
-		else if(cmp(argv[0], "send")) {
-			{
-				PROFILE();
-				radio.sendTest();
-			}
-		}
 		else if(cmp(argv[0], "freq")) {
 			int f = to_int(argv[1]);
 
@@ -371,13 +316,6 @@ int main() {
 	lpc17::RitClock::initialize();
 	lpc17::SysTickTimer::enable();
 
-	ADC::init(50000);
-	ADC::burstMode(true);
-
-	ADC::enableChannel(AD_CH_VBAT); //VBAT
-	Pinsel::setFunc(0, 2, 2); //AD0[7]
-
-
 	Uart2::init(460800);
 
 	Pinsel::setFunc(0, 10, 1); //TXD2
@@ -403,7 +341,14 @@ int main() {
 	NVIC_SetPriority(EINT3_IRQn, 0);
 
 	delay_ms(50);
+
 	lcd.initialize();
+
+	ADC::init(50000);
+	ADC::burstMode(true);
+
+	ADC::enableChannel(AD_CH_VBAT); //VBAT
+	Pinsel::setFunc(0, 2, 2); //AD0[7]
 
 	ledRed::setOutput(1);
 
