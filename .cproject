@@ -63,7 +63,7 @@
 								<option id="gnu.cpp.compiler.option.preprocessor.def.297191578" name="Defined symbols (-D)" superClass="gnu.cpp.compiler.option.preprocessor.def" useByScannerDiscovery="false" valueType="definedSymbols">
 									<listOptionValue builtIn="false" value="__ARM_LPC17XX__"/>
 								</option>
-								<option id="gnu.cpp.compiler.option.optimization.flags.1359951643" name="Other optimization flags" superClass="gnu.cpp.compiler.option.optimization.flags" useByScannerDiscovery="false" value="-funsafe-math-optimizations -mlong-calls -fsingle-precision-constant  -ffast-math -finline-functions -funroll-loops -fpredictive-commoning -flto " valueType="string"/>
+								<option id="gnu.cpp.compiler.option.optimization.flags.1359951643" name="Other optimization flags" superClass="gnu.cpp.compiler.option.optimization.flags" useByScannerDiscovery="false" value="-funsafe-math-optimizations -mlong-calls -fsingle-precision-constant  -ffast-math -finline-functions -funroll-loops -fpredictive-commoning" valueType="string"/>
 								<option id="gnu.cpp.compiler.option.dialect.std.1853116683" name="Language standard" superClass="gnu.cpp.compiler.option.dialect.std" useByScannerDiscovery="true" value="gnu.cpp.compiler.dialect.default" valueType="enumerated"/>
 								<option id="gnu.cpp.compiler.option.dialect.flags.1942650169" name="Other dialect flags" superClass="gnu.cpp.compiler.option.dialect.flags" useByScannerDiscovery="true" value="-std=gnu++1y" valueType="string"/>
 								<option id="gnu.cpp.compiler.option.debugging.other.2059982421" name="Other debugging flags" superClass="gnu.cpp.compiler.option.debugging.other" useByScannerDiscovery="false" value="" valueType="string"/>
