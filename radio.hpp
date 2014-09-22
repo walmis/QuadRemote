@@ -10,6 +10,7 @@
 
 #include <xpcc/architecture.hpp>
 #include <RH_RF22.h>
+#include <system.hpp>
 
 using namespace xpcc;
 
@@ -20,7 +21,9 @@ public:
 	}
 
 	void handleInit() {
-		init();
+		if(!init()) {
+			panic("radio init fail");
+		}
 	}
 
     inline uint16_t getRxBad() {

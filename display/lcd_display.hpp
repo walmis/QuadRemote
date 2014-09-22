@@ -9,8 +9,7 @@
 #define LCDDISPLAY_HPP_
 
 #include <xpcc/processing.hpp>
-
-using namespace xpcc;
+#include <xpcc/io/stringstream.hpp>
 
 class LCDLine {
 public:
@@ -27,7 +26,7 @@ public:
 	}
 
 	void addTextField(char *text, uint8_t fieldWidth = 0) {
-		StringStream<16> str;
+		xpcc::StringStream<16> str;
 
 		str << text;
 
@@ -35,7 +34,7 @@ public:
 	}
 
 	void addIntegerField(int i, uint8_t fieldWidth = 0) {
-		StringStream<16> str;
+		xpcc::StringStream<16> str;
 
 		str << i;
 
@@ -44,7 +43,7 @@ public:
 
 	template <typename T>
 	void addField(T value, uint8_t fieldWidth = 0) {
-		StringStream<16> str;
+		xpcc::StringStream<16> str;
 
 		str << value;
 
@@ -60,7 +59,7 @@ public:
 
 private:
 
-	void addField(StringStream<16> &str, uint8_t fieldWidth) {
+	void addField(xpcc::StringStream<16> &str, uint8_t fieldWidth) {
 		alignField(str, fieldWidth);
 		if(fieldWidth == 0) {
 			fieldWidth = str.pos;
@@ -69,7 +68,7 @@ private:
 		pos += fieldWidth;
 	}
 
-	void alignField(StringStream<16> &str, uint8_t fieldWidth) {
+	void alignField(xpcc::StringStream<16> &str, uint8_t fieldWidth) {
 		if(str.pos < fieldWidth) {
 			uint8_t diff = fieldWidth - str.pos;
 
@@ -82,7 +81,7 @@ private:
 };
 
 template<typename T>
-class LcdDisplay : TickerTask {
+class LcdDisplay : xpcc::TickerTask {
 public:
 	LcdDisplay(T* lcd) : LCD(lcd) {
 		page = 0;
@@ -96,7 +95,7 @@ protected:
 
 	void handleTick() {
 
-		static PeriodicTimer<> t(50);
+		static xpcc::PeriodicTimer<> t(50);
 		if(t.isExpired()) {
 			line[0].clear();
 			line[1].clear();
@@ -104,8 +103,8 @@ protected:
 			getPage(page);
 
 			LCD->setCursor(0, 0);
-			LCD->IOStream::write((uint8_t*)line[0].line, 16);
-			LCD->IOStream::write((uint8_t*)line[1].line, 16);
+			LCD->xpcc::IOStream::write((uint8_t*)line[0].line, 16);
+			LCD->xpcc::IOStream::write((uint8_t*)line[1].line, 16);
 		}
 	}
 
