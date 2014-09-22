@@ -51,10 +51,12 @@ public:
 		addField(str, fieldWidth);
 	}
 
-	void addFloatField(float n) {
-
-
+	template <typename T>
+	LCDLine& operator <<(T& val) {
+		addField(val);
+		return *this;
 	}
+
 
 private:
 

@@ -35,8 +35,16 @@ void delay(uint32_t millis) {
 	xpcc::delay_ms(millis);
 }
 
-void yield() {
+void rh_yield() {
 	//xpcc::TickerTask::yield();
+}
+
+void rh_atomic_block_start() {
+	xpcc::GpioInt::disableInterrupts();
+}
+
+void rh_atomic_block_end() {
+	xpcc::GpioInt::enableInterrupts();
 }
 
 uint32_t millis() {
@@ -56,36 +64,16 @@ void pinMode(uint8_t pin, WiringPinMode mode) {
 	}
 }
 
-void (*irqFn)() = 0;
 
 void attachInterrupt(uint8_t pin, void (*fn)(void), int mode) {
 	printf("attach int %d -> %d\n", pin, mode);
 
 	if(pin == 1) {
-		xpcc::GpioInterrupt::enableInterrupt(radio_irq::Port,
-				radio_irq::Pin, xpcc::IntSense::EDGE,
-				xpcc::IntEdge::SINGLE, xpcc::IntEvent::FALLING_EDGE);
-
-		irqFn = fn;
-
-		xpcc::GpioInterrupt::enableGlobalInterrupts();
+		xpcc::GpioInt::attach(radio_irq::Port, radio_irq::Pin, fn, xpcc::IntEdge::FALLING_EDGE);
 	}
 
 }
 
-class Irq : xpcc::TickerTask {
-	void handleInterrupt(int irq) {
-		if(xpcc::GpioInterrupt::checkInterrupt(irq,
-				radio_irq::Port, radio_irq::Pin, xpcc::IntEvent::FALLING_EDGE)) {
-
-			if(irqFn)
-				irqFn();
-
-		}
-	}
-};
-
-static Irq _irq;
 
 void digitalWrite(uint8_t pin, uint8_t val) {
 	if(pin == 0) {

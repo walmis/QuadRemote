@@ -13,11 +13,9 @@
 
 #include "pindefs.hpp"
 
-#include <xpcc/driver/connectivity/wireless/at86rf230.hpp>
 #include <xpcc/driver/connectivity/usb/USBDevice.hpp>
-#include <xpcc/driver/storage/i2c_eeprom.hpp>
 
-#include <xpcc/communication/TinyRadioProtocol.hpp>
+#include "eeprom/eeprom.hpp"
 
 #include <lpc17xx_nvic.h>
 #include <lpc17xx_uart.h>
@@ -85,15 +83,13 @@ protected:
 	}
 
 	void handleTick() {
-
-		static PeriodicTimer<> t(10);
+		static PeriodicTimer<> t(20);
 
 		if(t.isExpired()) {
 			if(!transmitting()) {
 
 				noiseFloor = ((uint16_t)noiseFloor*5 + rssiRead())/6;
 
-				p.start();
 				send((uint8_t*)(&rcData), sizeof(rcData));
 
 				sending = true;
@@ -104,7 +100,6 @@ protected:
 
 		if(sending && !transmitting()) {
 			sending = false;
-			p.end();
 			setModeRx();
 		}
 	}
@@ -159,10 +154,180 @@ Axes axes;
 
 Battery battery;
 
+enum Page {
+	BATTERY,
+	AXES,
+	RF
+};
+
+class Configurator {
+public:
+
+	virtual void populate(LCDLine* lines, uint8_t nLines) = 0;
+	virtual void nextValue() = 0;
+	virtual void prevValue() = 0;
+};
+
+class InfoScreen {
+public:
+	InfoScreen() : prev(0), next(0) {}
+
+	virtual void populate(LCDLine* lines, uint8_t nLines) = 0;
+
+	virtual uint8_t numConfigurators() {
+		return 0;
+	}
+	virtual Configurator* getConfigurator(uint8_t i) {
+		return 0;
+	}
+
+	InfoScreen* prev;
+	InfoScreen* next;
+};
+
+class BatScreen : public InfoScreen {
+public:
+	void populate(LCDLine* lines, uint8_t nLines) {
+		battery.update();
+
+		lines[0].addTextField("SYS");
+
+		if(!battery.onUSBPower()) {
+			lines[1].addField(battery.getBatteryPercent(), 3);
+			lines[1].addField("% ");
+
+			lines[1].addField(battery.getPackVoltage(), 4);
+			lines[1].addField('V');
+		} else {
+			lines[1].addField("VUSB");
+		}
+	}
+};
+
+class AxesScreen : public InfoScreen {
+public:
+	void populate(LCDLine* lines, uint8_t nLines) {
+		lines[0].addIntegerField(axes.getChannel(0), 5);
+		lines[0].addIntegerField(axes.getChannel(1), 5);
+		lines[0].addIntegerField(axes.getChannel(2), 5);
+
+		lines[1].addIntegerField(axes.getChannel(3), 5);
+		lines[1].addIntegerField(axes.getChannel(4), 5);
+
+		lines[1].addIntegerField(btnL::read(), 2);
+		lines[1].addIntegerField(btnR::read(), 1);
+		lines[1].addIntegerField(btnU::read(), 1);
+		lines[1].addIntegerField(btnD::read(), 1);
+		lines[1].addIntegerField(auxSw5::read(), 1);
+	}
+};
+
+class FreqConf : public Configurator {
+public:
+	float f = 433.0;
+	void populate(LCDLine* lines, uint8_t nLines) {
+		lines[0] << "Frequency:";
+		lines[1] << f;
+	}
+
+	void nextValue() {
+		f+=0.1;
+	}
+	void prevValue() {
+		f-=0.1;
+	}
+};
+
+class ModemConf : public Configurator {
+public:
+	float f = 433.0;
+
+	void populate(LCDLine* lines, uint8_t nLines) {
+		lines[0] << "Modem cfg:";
+		lines[1] << f;
+	}
+
+	void nextValue() {
+		f+=0.1;
+	}
+	void prevValue() {
+		f-=0.1;
+	}
+};
+
+class TestConf : public Configurator {
+public:
+	float f = 433.0;
+
+	void populate(LCDLine* lines, uint8_t nLines) {
+		//lines[0] << "Modem cfg:";
+		//lines[1] << f;
+	}
+
+	void nextValue() {
+		f+=0.1;
+	}
+	void prevValue() {
+		f-=0.1;
+	}
+};
+
+class RadioScreen : public InfoScreen {
+public:
+	void populate(LCDLine* lines, uint8_t nLines) {
+		int rssi = radio.lastRssi();
+		int noise = (radio.noiseFloor *100 / 190) - 127;
+		//int noise = ((int)radio.rssiRead()*100 / 190) - 127;
+
+		int rxe = radio.getRxBad();
+		static int txe = 0;
+
+		txe %= 100;
+		int tx = radio.getTxGood() % 1000;
+		int rx = radio.getRxGood() % 1000;
+
+		lines[0].addTextField("T:");
+		lines[0].addIntegerField(tx, 3);
+		lines[0].addTextField("/");
+		lines[0].addIntegerField(txe, 2);
+
+		lines[0].addTextField(" dBm");
+		lines[0].addIntegerField(rssi, 4);
+
+		lines[1].addTextField("R:");
+		lines[1].addIntegerField(rx, 3);
+		lines[1].addTextField("/");
+		lines[1].addIntegerField(rxe, 2);
+
+		lines[1].addIntegerField(noise, 8);
+	}
+
+	uint8_t numConfigurators() {
+		return 2;
+	}
+
+	Configurator* getConfigurator(uint8_t i) {
+		static FreqConf c;
+		static ModemConf c2;
+		//static TestConf c3;
+
+		switch(i) {
+		case 0:
+			return &c;
+		case 1:
+			return &c2;
+		}
+
+		return 0;
+	}
+};
+
 class MyDisplay : public LcdDisplay<Hd44780Lcd> {
 public:
-	MyDisplay() : LcdDisplay<Hd44780Lcd>(&lcd), buttons(0xF) {
-
+	MyDisplay() : LcdDisplay<Hd44780Lcd>(&lcd), buttons(0xF, 50, 8) {
+		conf = 0;
+		currentScreen = 0;
+		confItem = 0;
 	}
 
 	void handleTick() override {
@@ -177,82 +342,90 @@ public:
 	void updateButtons() {
 		buttons.update(joystickBtns::read());
 
-		if(buttons.isPressed(BUTTON_UP)) {
-			page--;
+		if(buttons.isPressed(BUTTON_UP) || buttons.isRepeated(BUTTON_UP)) {
+			if(conf) {
+				conf->nextValue();
+			} else {
+				if(currentScreen && currentScreen->prev) {
+					currentScreen = currentScreen->prev;
+				}
+			}
 		}
 
-		if(buttons.isPressed(BUTTON_DN)) {
-			page++;
+		if(buttons.isPressed(BUTTON_DN) || buttons.isRepeated(BUTTON_DN)) {
+			if(conf) {
+				conf->prevValue();
+			} else {
+				if(currentScreen && currentScreen->next) {
+					currentScreen = currentScreen->next;
+				} else {
+					currentScreen = screens_tail;
+				}
+			}
+		}
+
+		if(buttons.isPressed(BUTTON_RIGHT)) {
+			if(currentScreen) {
+				uint8_t n = currentScreen->numConfigurators();
+				if(!conf && n !=0 ) {
+					confItem = 0;
+					conf = currentScreen->getConfigurator(confItem);
+				} else {
+					confItem++;
+					if(confItem >= n) {
+						conf = 0;
+					} else {
+						conf = currentScreen->getConfigurator(confItem);
+					}
+				}
+			}
+		}
+
+		if(buttons.isPressed(BUTTON_LEFT)) {
+			if(currentScreen) {
+				if(conf) {
+					if(confItem == 0) {
+						conf = 0;
+					} else {
+						confItem--;
+						conf = currentScreen->getConfigurator(confItem);
+					}
+				}
+			}
 		}
 	}
 
 	void getPage(uint8_t page) {
-		switch(page) {
-		default:
-			setPage(0);
-
-		case 0:
-			battery.update();
-
-			line[0].addTextField("SYS");
-
-			if(!battery.onUSBPower()) {
-				line[1].addField(battery.getBatteryPercent(), 3);
-				line[1].addField("% ");
-
-				line[1].addField(battery.getPackVoltage(), 4);
-				line[1].addField('V');
-			} else {
-				line[1].addField("VUSB");
-			}
-
-			break;
-		case 1:
-			line[0].addIntegerField(axes.getChannel(0), 5);
-			line[0].addIntegerField(axes.getChannel(1), 5);
-			line[0].addIntegerField(axes.getChannel(2), 5);
-
-			line[1].addIntegerField(axes.getChannel(3), 5);
-			line[1].addIntegerField(axes.getChannel(4), 5);
-
-			line[1].addIntegerField(btnL::read(), 2);
-			line[1].addIntegerField(btnR::read(), 1);
-			line[1].addIntegerField(btnU::read(), 1);
-			line[1].addIntegerField(btnD::read(), 1);
-			line[1].addIntegerField(auxSw5::read(), 1);
-			break;
-		case 2:
-		{
-			int rssi = radio.lastRssi();
-			int noise = (radio.noiseFloor *100 / 190) - 127;
-			//int noise = ((int)radio.rssiRead()*100 / 190) - 127;
-
-			int rxe = radio.getRxBad();
-			static int txe = 0;
-			txe++;
-			txe %= 100;
-			int tx = radio.getTxGood() % 1000;
-			int rx = radio.getRxGood() % 1000;
-
-			line[0].addTextField("T:");
-			line[0].addIntegerField(tx, 3);
-			line[0].addTextField("/");
-			line[0].addIntegerField(txe, 2);
-
-			line[0].addTextField(" dBm");
-			line[0].addIntegerField(rssi, 4);
-
-			line[1].addTextField("R:");
-			line[1].addIntegerField(rx, 3);
-			line[1].addTextField("/");
-			line[1].addIntegerField(rxe, 2);
-
-			line[1].addIntegerField(noise, 8);
-			break;
-		}
-
+		if(conf) {
+			conf->populate(line, 2);
+		} else
+		if(currentScreen) {
+			currentScreen->populate(line, 2);
 		}
 	}
+
+	void addScreen(InfoScreen* screen) {
+		if(!screens_tail) {
+			screens_tail = screen;
+			currentScreen = screen;
+		} else {
+			InfoScreen* s = screens_tail;
+			while(s->next) {
+				s = s->next;
+			}
+			s->next = screen;
+			screen->prev = s;
+		}
+	}
+
+	uint8_t confItem;
+
+	//linked list tail
+	InfoScreen* screens_tail;
+	//currently displayed screen
+	InfoScreen* currentScreen;
+
+	Configurator* conf;
 
 	xpcc::ButtonGroup<> buttons;
 };
@@ -278,7 +451,27 @@ protected:
 
 			LPC_WDT->WDFEED = 0x56;
 		}
+		else if(cmp(argv[0], "eeread")) {
+			uint16_t addr = to_int(argv[1]);
 
+			uint8_t c = 0;
+			if(!eeprom.readByte(addr, c)) {
+				printf("Failed\n");
+			} else {
+				printf("> %02x\n", c);
+			}
+		}
+		else if(cmp(argv[0], "eewrite")) {
+			uint16_t addr = to_int(argv[1]);
+			uint16_t b = to_int(argv[2]);
+
+			uint8_t c = 0;
+			if(!eeprom.writeByte(addr, b)) {
+				printf("Failed\n");
+			} else {
+				printf("OK\n");
+			}
+		}
 		else if(cmp(argv[0], "version")) {
 
 			ios << fwversion << endl;
@@ -311,6 +504,15 @@ protected:
 CmdTerminal cmd(device);
 //CmdTerminal ucmd(uart);
 
+BatScreen screen_bat;
+AxesScreen screen_ax;
+RadioScreen screen_radio;
+
+InfoScreen* const screens[] = {
+		&screen_bat,
+		&screen_ax,
+		&screen_radio
+};
 
 int main() {
 	lpc17::RitClock::initialize();
@@ -332,7 +534,11 @@ int main() {
 
 	xpcc::Random::seed();
 
-	//lpc17::I2cMaster2::initialize<xpcc::I2cMaster::DataRate::Fast>();
+	////////
+	lpc17::I2cMaster1::initialize<xpcc::I2cMaster::DataRate::Fast>();
+	Pinsel::setFunc(0, 0, 3); //SDA1
+	Pinsel::setFunc(0, 1, 3); //SCL1
+	////////
 
 	usbConnPin::setOutput(true);
 	device.connect();
@@ -350,7 +556,15 @@ int main() {
 	ADC::enableChannel(AD_CH_VBAT); //VBAT
 	Pinsel::setFunc(0, 2, 2); //AD0[7]
 
+	GpioInt::enableInterrupts();
+
 	ledRed::setOutput(1);
+
+	eeprom.initialize();
+
+	for(auto s : screens) {
+		disp.addScreen(s);
+	}
 
 	TickerTask::tasksRun(idle);
 }

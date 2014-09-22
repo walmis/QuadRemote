@@ -43,7 +43,7 @@
 									<listOptionValue builtIn="false" value="__ARM_LPC17XX__"/>
 								</option>
 								<option id="gnu.c.compiler.option.optimization.flags.1821896242" name="Other optimization flags" superClass="gnu.c.compiler.option.optimization.flags" useByScannerDiscovery="false" value="-mlong-calls" valueType="string"/>
-								<option id="gnu.c.compiler.option.debugging.other.263012627" name="Other debugging flags" superClass="gnu.c.compiler.option.debugging.other" useByScannerDiscovery="false" value="-g" valueType="string"/>
+								<option id="gnu.c.compiler.option.debugging.other.263012627" name="Other debugging flags" superClass="gnu.c.compiler.option.debugging.other" useByScannerDiscovery="false" value="" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.990257984" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.cross.cpp.compiler.734776083" name="Cross G++ Compiler" superClass="cdt.managedbuild.tool.gnu.cross.cpp.compiler">
@@ -65,7 +65,7 @@
 								</option>
 								<option id="gnu.cpp.compiler.option.optimization.flags.1359951643" name="Other optimization flags" superClass="gnu.cpp.compiler.option.optimization.flags" useByScannerDiscovery="false" value="-funsafe-math-optimizations -mlong-calls -fsingle-precision-constant  -ffast-math -finline-functions -funroll-loops -fpredictive-commoning" valueType="string"/>
 								<option id="gnu.cpp.compiler.option.dialect.std.1853116683" name="Language standard" superClass="gnu.cpp.compiler.option.dialect.std" useByScannerDiscovery="true" value="gnu.cpp.compiler.dialect.default" valueType="enumerated"/>
-								<option id="gnu.cpp.compiler.option.dialect.flags.1942650169" name="Other dialect flags" superClass="gnu.cpp.compiler.option.dialect.flags" useByScannerDiscovery="true" value="-std=gnu++1y" valueType="string"/>
+								<option id="gnu.cpp.compiler.option.dialect.flags.1942650169" name="Other dialect flags" superClass="gnu.cpp.compiler.option.dialect.flags" useByScannerDiscovery="true" value="-std=gnu++11" valueType="string"/>
 								<option id="gnu.cpp.compiler.option.debugging.other.2059982421" name="Other debugging flags" superClass="gnu.cpp.compiler.option.debugging.other" useByScannerDiscovery="false" value="" valueType="string"/>
 								<inputType id="cdt.managedbuild.tool.gnu.cpp.compiler.input.499278313" superClass="cdt.managedbuild.tool.gnu.cpp.compiler.input"/>
 							</tool>
