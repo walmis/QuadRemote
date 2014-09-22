@@ -9,8 +9,6 @@
 #include <xpcc/architecture.hpp>
 #include <xpcc/driver/storage/i2c_eeprom.hpp>
 
-#define TOKEN 0x63
-
 #include "eedata.hpp"
 
 template<typename T, typename U> constexpr size_t offsetOf(U T::*member)

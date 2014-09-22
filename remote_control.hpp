@@ -23,10 +23,10 @@ public:
 		int16_t yawCh;
 		int16_t pitchCh;
 		int16_t rollCh;
-		int8_t throttleCh;
-		uint8_t auxCh;
+		int16_t throttleCh;
+		uint16_t auxCh;
 		uint8_t switches;
-		uint8_t reserved[3];
+		uint8_t reserved[1];
 	} __attribute__((packed));
 
 	RCPacket rcData;
