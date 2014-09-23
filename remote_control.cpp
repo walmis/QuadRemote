@@ -27,8 +27,68 @@ void RemoteControl::handleInit() {
 
 void RemoteControl::handleTick() {
 	static PeriodicTimer<> t(20);
-	if (t.isExpired()) {
-		if (!transmitting()) {
+	if (!transmitting()) {
+		if (sending) {
+			sending = false;
+			setModeRx();
+		}
+
+		if(!sending && available()) {
+			uint8_t buf[255];
+			uint8_t len = sizeof(buf);
+
+			recv(buf, &len);
+
+			if(len >= sizeof(Packet)) {
+				Packet* p = (Packet*)buf;
+
+				switch(p->id) {
+				case PACKET_DATA_FIRST:
+					dataPos = 0;
+					//fall through
+				case PACKET_DATA_LAST:
+				case PACKET_DATA: {
+					uint8_t sz = len-sizeof(Packet);
+					if(sz > (sizeof(packetBuf) - dataPos)) {
+						sz = sizeof(packetBuf) - dataPos;
+					}
+					memcpy(packetBuf+dataPos,
+							buf+sizeof(Packet), sz);
+					dataPos += sz;
+				}
+				break;
+
+				}
+				if(p->id == PACKET_DATA_LAST) {
+					printf("received packed len:%d\n", dataPos);
+				}
+
+				if(p->id >= PACKET_RC) {
+					rcData.ackSeq = p->seq; //acknowledge packet
+
+					//check for lost packets
+					if(lastSeq+1 != p->seq) {
+						if(p->seq < lastSeq) {
+							_rxBad += 255-lastSeq + p->seq;
+						} else {
+							_rxBad += p->seq - lastSeq;
+						}
+					}
+
+					lastSeq = p->seq;
+					lastAckSeq = p->ackSeq;
+				}
+
+			}
+
+			//XPCC_LOG_DEBUG.dump_buffer(buf, len);
+		}
+		if (!sending && t.isExpired()) {
+			//sent packet was not acknowledged
+
+			if(std::abs(rcData.seq - lastAckSeq) > 1) {
+				_txBad++;
+			}
 
 			rcData.seq++;
 			rcData.pitchCh = axes.getChannel(AXIS_PITCH_CH);
@@ -43,13 +103,9 @@ void RemoteControl::handleTick() {
 			send((uint8_t*) (&rcData), sizeof(rcData));
 
 			sending = true;
-		} else {
 
 		}
 	}
-	if (sending && !transmitting()) {
-		sending = false;
-		setModeRx();
-	}
+
 }
 

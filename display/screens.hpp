@@ -19,9 +19,10 @@ public:
 		//int noise = ((int)radio.rssiRead()*100 / 190) - 127;
 
 		int rxe = radio.getRxBad();
-		static int txe = 0;
+		int txe = radio.getTxBad();
 
 		txe %= 100;
+		rxe %= 100;
 		int tx = radio.getTxGood() % 1000;
 		int rx = radio.getRxGood() % 1000;
 

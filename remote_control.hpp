@@ -11,27 +11,37 @@
 #include "radio.hpp"
 
 enum PacketType {
-	RC_PACKET,
-	RF_PARAM_SET_PACKET
+	PACKET_RC = 100,
+	PACKET_RF_PARAM_SET,
+	PACKET_DATA_FIRST, //first data fragment
+	PACKET_DATA, //data fragment
+	PACKET_DATA_LAST //last data fragment
 };
+
+struct Packet {
+	uint8_t id = PACKET_RC;
+	uint8_t seq; //sequence number
+	uint8_t ackSeq; //rx acknowledged seq number
+} __attribute__((packed));
+
+struct RCPacket : Packet{
+	int16_t yawCh;
+	int16_t pitchCh;
+	int16_t rollCh;
+	int16_t throttleCh;
+	uint16_t auxCh;
+	uint8_t switches;
+} __attribute__((packed));
 
 class RemoteControl : public Radio {
 public:
-	struct RCPacket {
-		uint8_t id = RC_PACKET;
-		uint8_t seq;
-		int16_t yawCh;
-		int16_t pitchCh;
-		int16_t rollCh;
-		int16_t throttleCh;
-		uint16_t auxCh;
-		uint8_t switches;
-		uint8_t reserved[1];
-	} __attribute__((packed));
-
 	RCPacket rcData;
 
 	uint8_t noiseFloor;
+
+	inline uint32_t getTxBad() {
+		return _txBad;
+	}
 
 protected:
 	void handleInit();
@@ -39,6 +49,12 @@ protected:
 
 	bool sending;
 
+	uint8_t lastSeq;
+	uint8_t lastAckSeq;
+	uint32_t _txBad;
+
+	uint8_t packetBuf[255];
+	uint8_t dataPos;
 };
 
 

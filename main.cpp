@@ -38,7 +38,7 @@ Display disp(lcd);
 #define _DEBUG
 //#define _SER_DEBUG
 
-USBSerial device(0xffff);
+USBSerial device(0xffff, 0xce38);
 xpcc::IOStream stream(device);
 xpcc::NullIODevice null;
 
