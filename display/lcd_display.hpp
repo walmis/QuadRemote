@@ -25,46 +25,29 @@ public:
 		pos = 0;
 	}
 
-	void addTextField(char *text, uint8_t fieldWidth = 0) {
-		xpcc::StringStream<16> str;
-
-		str << text;
-
-		addField(str, fieldWidth);
-	}
-
-	void addIntegerField(int i, uint8_t fieldWidth = 0) {
-		xpcc::StringStream<16> str;
-
-		str << i;
-
-		addField(str, fieldWidth);
-	}
-
 	template <typename T>
-	void addField(T value, uint8_t fieldWidth = 0) {
+	void addField(T value, uint8_t fieldWidth = 0, bool align = true) {
 		xpcc::StringStream<16> str;
-
 		str << value;
 
-		addField(str, fieldWidth);
+		addField(str, fieldWidth, align);
 	}
-
 	template <typename T>
-	LCDLine& operator <<(T& val) {
+	LCDLine& operator <<(T val) {
 		addField(val);
 		return *this;
 	}
 
-
 private:
 
-	void addField(xpcc::StringStream<16> &str, uint8_t fieldWidth) {
-		alignField(str, fieldWidth);
+	void addField(xpcc::StringStream<16> &str, uint8_t fieldWidth, bool align) {
+		if(align) {
+			alignField(str, fieldWidth);
+		}
 		if(fieldWidth == 0) {
 			fieldWidth = str.pos;
 		}
-		strncpy(line+pos, str.buffer, fieldWidth);
+		memcpy(line+pos, str.buffer, align?fieldWidth:str.pos);
 		pos += fieldWidth;
 	}
 

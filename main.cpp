@@ -34,6 +34,7 @@ Hd44780Lcd lcd(16, 2);
 Axes axes;
 Battery battery;
 Display disp(lcd);
+Leds leds;
 
 #define _DEBUG
 //#define _SER_DEBUG
@@ -205,7 +206,9 @@ int main() {
 
 	GpioInt::enableInterrupts();
 
-	ledRed::setOutput(1);
+	ledRed::setOutput(0);
+	ledYellow::setOutput(0);
+	ledGreen::setOutput(0);
 
 	eeprom.initialize();
 

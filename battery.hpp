@@ -16,10 +16,8 @@ using namespace xpcc;
 using namespace xpcc::lpc17;
 
 
-class Battery {
+class Battery : TickerTask {
 public:
-	void update();
-
 	int getBatteryPercent();
 
 	bool onUSBPower();
@@ -33,6 +31,9 @@ public:
 	}
 
 private:
+
+	void handleTick();
+
 	float cellVoltage;
 	float packVoltage;
 

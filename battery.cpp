@@ -16,17 +16,20 @@ const static unsigned short percent_to_volt_discharge[2][11] = {
 		/ 3, 3800 / 3, 3860 / 3, 4050 / 3 } /* NiMH */
 };
 
-void Battery::update() {
-	int16_t adc = ADC::getData(AD_CH_VBAT);
-	//4096 - 3.3V
-	//30k 8.2k
-	float bat = (adc / (4096 / 3.3f)) * 4.651f;
-	if (std::abs(bat - packVoltage) > 0.2f) {
-		packVoltage = bat;
-	} else {
-		packVoltage = (packVoltage * 50 + bat) / 51;
+void Battery::handleTick() {
+	static PeriodicTimer<> t(50);
+	if(t.isExpired()) {
+		int16_t adc = ADC::getData(AD_CH_VBAT);
+		//4096 - 3.3V
+		//30k 8.2k
+		float bat = (adc / (4096 / 3.3f)) * 4.651f;
+		if (std::abs(bat - packVoltage) > 0.2f) {
+			packVoltage = bat;
+		} else {
+			packVoltage = (packVoltage * 50 + bat) / 51;
+		}
+		cellVoltage = packVoltage / 8;
 	}
-	cellVoltage = packVoltage / 8;
 }
 
 int Battery::getBatteryPercent() {

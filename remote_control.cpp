@@ -11,27 +11,51 @@
 void RemoteControl::handleInit() {
 	Radio::handleInit();
 
-	float freq, afc;
-	uint8_t txPow;
-	RH_RF22::ModemConfigChoice modemCfg;
-
 	eeprom.get(&EEData::rfFrequency, freq);
-	eeprom.get(&EEData::afcPullIn, afc);
-	eeprom.get(&EEData::txPower, txPow);
+	eeprom.get(&EEData::afcPullIn, afcPullIn);
+	eeprom.get(&EEData::txPower, txPower);
 	eeprom.get(&EEData::modemCfg, modemCfg);
+	eeprom.get(&EEData::txInterval, txInterval);
+	eeprom.get(&EEData::fhChannels, numFhChannels);
 
-	setFrequency(freq, afc);
-	setTxPower(txPow);
+	txPacketTimer.restart(txInterval);
+
+	setFHStepSize(10);
+	setFrequency(freq, afcPullIn);
+	setTxPower(txPower);
 	setModemConfig(modemCfg);
 }
 
+uint8_t RemoteControl::getLinkQuality() {
+	if(Clock::now() - radio.getLastPreambleTime() > 250) {
+		return 0;
+	}
+	int percent = 2 * (radio.lastRssi() + 100);
+	if(percent > 100) percent = 100;
+	if(percent < 0) percent = 0;
+	return percent;
+}
+
 void RemoteControl::handleTick() {
-	static PeriodicTimer<> t(20);
+
 	if (!transmitting()) {
+
 		if (sending) {
 			sending = false;
+
+			//radio data is sent, now we can apply new settings
+			if(newRadioDataSent) {
+				setFrequency(freq, afcPullIn);
+				setModemConfig(modemCfg);
+				newRadioDataSent = false;
+			}
+
+			if(numFhChannels)
+				setFHChannel((rcData.seq^0x55) % numFhChannels);
+
 			setModeRx();
 		}
+
 
 		if(!sending && available()) {
 			uint8_t buf[255];
@@ -83,10 +107,13 @@ void RemoteControl::handleTick() {
 
 			//XPCC_LOG_DEBUG.dump_buffer(buf, len);
 		}
-		if (!sending && t.isExpired()) {
+		if (!sending && txPacketTimer.isExpired()) {
 			//sent packet was not acknowledged
+			if(rcData.seq !=lastAckSeq) {
+				//if packet was lost, restore previous FH channel
+				if(numFhChannels)
+					setFHChannel(((rcData.seq-1)^0x55) % numFhChannels);
 
-			if(std::abs(rcData.seq - lastAckSeq) > 1) {
 				_txBad++;
 			}
 
@@ -100,11 +127,27 @@ void RemoteControl::handleTick() {
 
 			noiseFloor = ((uint16_t) noiseFloor * 5 + rssiRead()) / 6;
 
-			send((uint8_t*) (&rcData), sizeof(rcData));
+			if(configurationChanged) {
+				RadioCfgPacket p;
+				p.seq = rcData.seq;
+				p.ackSeq = rcData.ackSeq;
+				p.frequency = getFreq();
+				p.afcPullIn = getAfcPullIn();
+				p.fhChannels = getNumFhChannels();
+				p.modemCfg = getModemCfg();
+				p.txPower = getTxPower();
+
+				send((uint8_t*) (&p), sizeof(RadioCfgPacket));
+				newRadioDataSent = true;
+				configurationChanged = false;
+			} else {
+				send((uint8_t*) (&rcData), sizeof(rcData));
+			}
 
 			sending = true;
 
 		}
+
 	}
 
 }

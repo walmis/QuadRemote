@@ -47,10 +47,12 @@ void Display::updateButtons() {
 				confItem = 0;
 				conf = currentScreen->getConfigurator(confItem);
 				if(conf)
-					conf->init();
+					conf->init(confItem);
 			} else {
 				confItem++;
 				conf = currentScreen->getConfigurator(confItem);
+				if(conf)
+					conf->init(confItem);
 			}
 		}
 	}
@@ -62,6 +64,8 @@ void Display::updateButtons() {
 				} else {
 					confItem--;
 					conf = currentScreen->getConfigurator(confItem);
+					if(conf)
+						conf->init(confItem);
 				}
 			}
 		}

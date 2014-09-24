@@ -15,7 +15,7 @@ typedef xpcc::Hd44780<lcd_e, xpcc::gpio::Unused, lcd_rs, lcd_data> Hd44780Lcd;
 
 #include "battery.hpp"
 #include "Axes.hpp"
-
+#include "leds.hpp"
 #include "remote_control.hpp"
 #include "display/lcd_display.hpp"
 
@@ -29,7 +29,7 @@ extern Battery battery;
 extern Axes axes;
 extern Hd44780Lcd lcd;
 extern RemoteControl radio;
-
+extern Leds leds;
 
 
 #endif
