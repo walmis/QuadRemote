@@ -92,7 +92,7 @@ protected:
 			LPC_WDT->WDFEED = 0x56;
 		}
 		else if(cmp(argv[0], "eeread")) {
-			uint16_t addr = to_int(argv[1]);
+			uint16_t addr = toInt(argv[1]);
 
 			uint8_t c = 0;
 			if(!eeprom.readByte(addr, c)) {
@@ -102,8 +102,8 @@ protected:
 			}
 		}
 		else if(cmp(argv[0], "eewrite")) {
-			uint16_t addr = to_int(argv[1]);
-			uint16_t b = to_int(argv[2]);
+			uint16_t addr = toInt(argv[1]);
+			uint16_t b = toInt(argv[2]);
 
 			uint8_t c = 0;
 			if(!eeprom.writeByte(addr, b)) {
@@ -112,6 +112,68 @@ protected:
 				printf("OK\n");
 			}
 		}
+		else if(cmp(argv[0], "flashboot")) {
+			uint16_t binLen;
+			uint16_t len = binLen = toInt(argv[1]);
+			uint32_t checksum = toInt(argv[2]);
+
+			if(len < 3000 || len > 4095) {
+				printf("ERR: bad length\n");
+				return;
+			} else {
+				printf("OK\n");
+			}
+
+			uint32_t flashPos = 0x00000000;
+
+			IAP iap;
+
+			uint16_t pos = 0;
+			uint8_t buf[256];
+			memset(buf, 0xFF, 256);
+
+			lcd.clear();
+			lcd << "Flash boot\n";
+
+			while(len) {
+
+				while(len && pos < sizeof(buf)) {
+					while(!device.read((char&)buf[pos]));
+					pos++;
+					len--;
+				}
+
+				if(pos) {
+					iap.findErasePrepareSector(flashPos);
+					iap.writeData(flashPos, (unsigned int*)buf, sizeof(buf));
+					printf("write %x %d\n", flashPos, pos);
+					flashPos += sizeof(buf);
+					pos = 0;
+					memset(buf, 0xFF, 256);
+				}
+			}
+			uint32_t sum = 0;
+			uint8_t* ptr = (uint8_t*)0x00000000;
+
+			for(int i = 0; i < binLen; i++) {
+				sum += *ptr++;
+			}
+			printf("checksum: %08x %08x\n", sum, checksum);
+
+		}
+		else if(cmp(argv[0], "dumpboot")) {
+			XPCC_LOG_DEBUG.dump_buffer((uint8_t*)0x00000000, 4096);
+		}
+		else if(cmp(argv[0], "bootsum")) {
+			uint32_t sum = 0;
+			uint8_t* ptr = (uint8_t*)0x00000000;
+
+			for(int i = 0; i < 4096; i++) {
+				sum += *ptr++;
+			}
+			printf("checksum: %08x\n", sum);
+		}
+
 		else if(cmp(argv[0], "version")) {
 
 			ios << fwversion << endl;
@@ -123,14 +185,14 @@ protected:
 		}
 
 		else if(cmp(argv[0], "freq")) {
-			int f = to_int(argv[1]);
+			int f = toInt(argv[1]);
 
 			radio.setFrequency((float)f, 0.05);
 		}
 
 
 		else if(cmp(argv[0], "page")) {
-			int page = to_int(argv[1]);
+			int page = toInt(argv[1]);
 
 			disp.setPage(page);
 
@@ -195,6 +257,7 @@ int main() {
 
 	NVIC_SetPriority(USB_IRQn, 10);
 	NVIC_SetPriority(EINT3_IRQn, 0);
+	NVIC_SetPriority(SysTick_IRQn, 0);
 
 	lcd.initialize();
 

@@ -44,7 +44,8 @@ GPIO__INPUT(btnD, 2, 7);
 
 typedef xpcc::gpio::Nibble<btnL, btnR, btnU, btnD> joystickBtns;
 
-GPIO__INPUT(auxSw5, 2, 8);
+GPIO__INPUT(auxSw5_, 2, 8);
+typedef xpcc::gpio::Invert<auxSw5_> auxSw5;
 
 typedef xpcc::gpio::Nibble<lcd_d7, lcd_d6, lcd_d5, lcd_d4> lcd_data;
 

@@ -40,7 +40,7 @@ struct RCPacket : Packet{
 	int16_t pitchCh;
 	int16_t rollCh;
 	int16_t throttleCh;
-	uint16_t auxCh;
+	int16_t auxCh;
 	uint8_t switches;
 } __attribute__((packed));
 
@@ -129,6 +129,9 @@ public:
 protected:
 	friend class FreqConf;
 
+	void handleTxComplete();
+	void handleRxComplete();
+
 	uint8_t noiseFloor;
 	int8_t rssi;
 
@@ -143,8 +146,9 @@ protected:
 
 	uint8_t packetBuf[255];
 	uint8_t dataPos;
+	uint8_t dataLen;
 
-	PeriodicTimer<> txPacketTimer;
+	Timeout<> txPacketTimer;
 
 	///configuration parameters////
 	float freq;

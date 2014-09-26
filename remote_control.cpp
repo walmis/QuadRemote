@@ -35,6 +35,18 @@ uint8_t RemoteControl::getLinkQuality() {
 	if(percent < 0) percent = 0;
 	return percent;
 }
+static ProfileTimer t;
+
+void RemoteControl::handleTxComplete() {
+	if(numFhChannels)
+		setFHChannel((rcData.seq^0x55) % numFhChannels);
+
+	setModeRx();
+}
+
+void RemoteControl::handleRxComplete() {
+
+}
 
 void RemoteControl::handleTick() {
 
@@ -49,20 +61,14 @@ void RemoteControl::handleTick() {
 				setModemConfig(modemCfg);
 				newRadioDataSent = false;
 			}
-
-			if(numFhChannels)
-				setFHChannel((rcData.seq^0x55) % numFhChannels);
-
-			setModeRx();
 		}
 
 
-		if(!sending && available()) {
+		if(available()) {
 			uint8_t buf[255];
 			uint8_t len = sizeof(buf);
 
 			recv(buf, &len);
-
 			if(len >= sizeof(Packet)) {
 				Packet* p = (Packet*)buf;
 
@@ -79,26 +85,30 @@ void RemoteControl::handleTick() {
 					memcpy(packetBuf+dataPos,
 							buf+sizeof(Packet), sz);
 					dataPos += sz;
+					if(p->id == PACKET_DATA_LAST) {
+						dataLen = dataPos;
+						dataPos = 0;
+					}
 				}
 				break;
 
 				}
 				if(p->id == PACKET_DATA_LAST) {
-					printf("received packed len:%d\n", dataPos);
+					printf("received packed len:%d\n", dataLen);
 				}
 
 				if(p->id >= PACKET_RC) {
-					rcData.ackSeq = p->seq; //acknowledge packet
-
+					//printf("rx seq %d ackseq %d\n", p->seq, p->ackSeq);
 					//check for lost packets
-					if(lastSeq+1 != p->seq) {
+					if((uint8_t)(lastSeq+1) != p->seq) {
 						if(p->seq < lastSeq) {
 							_rxBad += 255-lastSeq + p->seq;
 						} else {
-							_rxBad += p->seq - lastSeq;
+							_rxBad += p->seq - (lastSeq+1);
 						}
 					}
 
+					rcData.ackSeq = p->seq; //acknowledge packet
 					lastSeq = p->seq;
 					lastAckSeq = p->ackSeq;
 				}
@@ -106,10 +116,13 @@ void RemoteControl::handleTick() {
 			}
 
 			//XPCC_LOG_DEBUG.dump_buffer(buf, len);
-		}
-		if (!sending && txPacketTimer.isExpired()) {
+		} else
+
+
+		if (!sending && txPacketTimer.isExpired() && rssiRead() < 80) {
 			//sent packet was not acknowledged
-			if(rcData.seq !=lastAckSeq) {
+			if(rcData.seq != lastAckSeq) {
+				//if(rcData.seq == lastAckSeq)
 				//if packet was lost, restore previous FH channel
 				if(numFhChannels)
 					setFHChannel(((rcData.seq-1)^0x55) % numFhChannels);
@@ -124,6 +137,7 @@ void RemoteControl::handleTick() {
 			rcData.rollCh = axes.getChannel(AXIS_ROLL_CH);
 			rcData.throttleCh = axes.getChannel(AXIS_THROTTLE_CH);
 			rcData.auxCh = axes.getChannel(AXIS_AUX6_CH);
+			rcData.switches = (auxSw5::read() & 0x01);
 
 			noiseFloor = ((uint16_t) noiseFloor * 5 + rssiRead()) / 6;
 
@@ -144,6 +158,9 @@ void RemoteControl::handleTick() {
 				send((uint8_t*) (&rcData), sizeof(rcData));
 			}
 
+			txPacketTimer.restart(txInterval);
+			//t.end();
+			//t.start();
 			sending = true;
 
 		}

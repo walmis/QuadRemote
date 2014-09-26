@@ -62,7 +62,7 @@ private:
 
 
 };
-
+#include <xpcc/architecture.hpp>
 template<typename T>
 class LcdDisplay : xpcc::TickerTask {
 public:
