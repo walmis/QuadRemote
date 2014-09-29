@@ -124,8 +124,8 @@ void RemoteControl::handleTick() {
 			if(rcData.seq != lastAckSeq) {
 				//if(rcData.seq == lastAckSeq)
 				//if packet was lost, restore previous FH channel
-				if(numFhChannels)
-					setFHChannel(((rcData.seq-1)^0x55) % numFhChannels);
+				//if(numFhChannels)
+				//	setFHChannel(((rcData.seq-1)^0x55) % numFhChannels);
 
 				_txBad++;
 			}
