@@ -7,6 +7,8 @@
 
 #include "remote_control.hpp"
 #include <system.hpp>
+#include "radio.hpp"
+#include <Axes.hpp>
 
 void RemoteControl::handleInit() {
 	Radio::handleInit();
@@ -137,7 +139,7 @@ void RemoteControl::handleTick() {
 			rcData.rollCh = axes.getChannel(AXIS_ROLL_CH);
 			rcData.throttleCh = axes.getChannel(AXIS_THROTTLE_CH);
 			rcData.auxCh = axes.getChannel(AXIS_AUX6_CH);
-			rcData.switches = (auxSw5::read() & 0x01);
+			//rcData.switches = (auxSw5::read() & 0x01);
 
 			noiseFloor = ((uint16_t) noiseFloor * 5 + rssiRead()) / 6;
 

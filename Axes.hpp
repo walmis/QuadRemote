@@ -37,6 +37,6 @@ protected:
 	bool calibrating;
 };
 
-
+extern Axes axes;
 
 #endif /* AXES_HPP_ */

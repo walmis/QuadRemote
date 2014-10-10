@@ -6,6 +6,11 @@
  */
 
 #include <system.hpp>
+#include <eeprom/eeprom.hpp>
+#include <battery.hpp>
+#include <remote_control.hpp>
+#include <leds.hpp>
+#include <battery.hpp>
 
 Leds::Mode Leds::getMode() {
 	return mode;

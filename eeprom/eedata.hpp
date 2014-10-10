@@ -12,7 +12,7 @@
 #include <xpcc/math.hpp>
 #include <RH_RF22.h>
 
-#define TOKEN 0x66
+#define TOKEN 0x67
 
 struct EEData {
 	uint8_t token;

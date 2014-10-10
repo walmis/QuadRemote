@@ -163,5 +163,6 @@ protected:
 	////////
 };
 
+extern RemoteControl radio;
 
 #endif /* REMOTE_CONTROL_HPP_ */

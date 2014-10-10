@@ -11,10 +11,17 @@
 #include <xpcc/processing.hpp>
 
 #include "pindefs.hpp"
+#include "Switches.h"
 
 #include <xpcc/driver/connectivity/usb/USBDevice.hpp>
 
 #include "eeprom/eeprom.hpp"
+#include "radio.hpp"
+#include "remote_control.hpp"
+#include "Axes.hpp"
+#include "leds.hpp"
+#include "display/display.hpp"
+#include "battery.hpp"
 
 #include <xpcc/debug.hpp>
 #include <xpcc/math/filter.hpp>
@@ -35,6 +42,7 @@ Axes axes;
 Battery battery;
 Display disp(lcd);
 Leds leds;
+Switches switches;
 
 #define _DEBUG
 //#define _SER_DEBUG
@@ -138,7 +146,9 @@ protected:
 			while(len) {
 
 				while(len && pos < sizeof(buf)) {
-					while(!device.read((char&)buf[pos]));
+					int16_t c;
+					do c = device.read(); while(c<0);
+					buf[pos] = c;
 					pos++;
 					len--;
 				}
@@ -190,7 +200,6 @@ protected:
 			radio.setFrequency((float)f, 0.05);
 		}
 
-
 		else if(cmp(argv[0], "page")) {
 			int page = toInt(argv[1]);
 
@@ -225,10 +234,9 @@ void panic(const char* str) {
 }
 
 int main() {
-	lpc17::RitClock::initialize();
-	lpc17::SysTickTimer::enable();
-
-	delay_ms(50);
+	RitClock::initialize();
+	SysTickTimer::enable();
+	ADC::init();
 
 	Uart2::init(460800);
 
@@ -257,15 +265,15 @@ int main() {
 
 	NVIC_SetPriority(USB_IRQn, 10);
 	NVIC_SetPriority(EINT3_IRQn, 0);
-	NVIC_SetPriority(SysTick_IRQn, 0);
+
+	delay_ms(50);
 
 	lcd.initialize();
 
-	ADC::init(50000);
-	ADC::burstMode(true);
-
 	ADC::enableChannel(AD_CH_VBAT); //VBAT
 	Pinsel::setFunc(0, 2, 2); //AD0[7]
+
+	ADC::start(ADC::ADCStartMode::START_CONTINUOUS);
 
 	GpioInt::enableInterrupts();
 

@@ -14,9 +14,9 @@
 
 //GPIO__INPUT(progPin, 2, 0);
 
-GPIO__OUTPUT(_ledGreen, 0, 15);
-GPIO__OUTPUT(_ledYellow, 0, 17);
-GPIO__OUTPUT(_ledRed, 0, 22);
+GPIO__IO(_ledGreen, 0, 15);
+GPIO__IO(_ledYellow, 0, 17);
+GPIO__IO(_ledRed, 0, 22);
 
 typedef xpcc::gpio::Invert<_ledRed> ledRed;
 typedef xpcc::gpio::Invert<_ledGreen> ledGreen;
@@ -44,8 +44,13 @@ GPIO__INPUT(btnD, 2, 7);
 
 typedef xpcc::gpio::Nibble<btnL, btnR, btnU, btnD> joystickBtns;
 
-GPIO__INPUT(auxSw5_, 2, 8);
-typedef xpcc::gpio::Invert<auxSw5_> auxSw5;
+GPIO__INPUT(auxSw1_, 2, 8);
+GPIO__INPUT(auxSw2, 0, 6);
+GPIO__INPUT(auxSw3, 4, 28);
+typedef _ledGreen auxSw4mux;
+typedef _ledYellow auxSw5mux;
+
+typedef xpcc::gpio::Invert<auxSw1_> auxSw1;
 
 typedef xpcc::gpio::Nibble<lcd_d7, lcd_d6, lcd_d5, lcd_d4> lcd_data;
 

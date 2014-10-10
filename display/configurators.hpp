@@ -9,6 +9,9 @@
 #define CONFIGURATORS_HPP_
 
 #include "configurators.hpp"
+#include "Axes.hpp"
+#include "leds.hpp"
+#include "radio.hpp"
 
 class LedConf : public Configurator {
 public:

@@ -41,4 +41,6 @@ private:
 	int voltage_to_percent(int voltage, const unsigned short * table);
 };
 
+extern Battery battery;
+
 #endif /* BATTERY_HPP_ */

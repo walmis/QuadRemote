@@ -39,8 +39,10 @@ void rh_yield() {
 	//xpcc::TickerTask::yield();
 }
 
+
 void rh_atomic_block_start() {
 	xpcc::GpioInt::disableInterrupts();
+
 }
 
 void rh_atomic_block_end() {
@@ -52,32 +54,55 @@ uint32_t millis() {
 }
 
 void pinMode(uint8_t pin, WiringPinMode mode) {
-	//printf("pinmode %d -> %d\n", pin, mode);
 
-	if(pin == 0) {
-		switch(mode) {
-		case WiringPinMode::OUTPUT:
-			radio_sel::setOutput();
-		case WiringPinMode::INPUT:
-			radio_sel::setInput();
-		}
+	LPC_GPIO_TypeDef* g = 0;
+	uint8_t p = pin&0x1F;
+	switch(pin>>5) {
+	case 0:
+		g = LPC_GPIO0;
+		break;
+	case 1:
+		g = LPC_GPIO1;
+		break;
+	case 2:
+		g = LPC_GPIO2;
+		break;
+	default:
+		return;
+	}
+
+	switch(mode) {
+	case WiringPinMode::OUTPUT:
+		g->FIODIR |= (1<<p);
+		break;
+	case WiringPinMode::INPUT:
+		g->FIODIR &= ~(1<<p);
+		break;
+	default:
+		return;
 	}
 }
 
-
 void attachInterrupt(uint8_t pin, void (*fn)(void), int mode) {
-	printf("attach int %d -> %d\n", pin, mode);
 
-	if(pin == 1) {
-		xpcc::GpioInt::attach(radio_irq::Port, radio_irq::Pin, fn, xpcc::IntEdge::FALLING_EDGE);
-	}
+	xpcc::GpioInt::attach(pin>>5, pin&0x1F,
+			fn, xpcc::IntEdge::FALLING_EDGE);
 
 }
 
 
 void digitalWrite(uint8_t pin, uint8_t val) {
-	if(pin == 0) {
-		radio_sel::setOutput(val);
+	uint8_t p = pin&0x1F;
+	switch(pin>>5) {
+	case 0:
+		val ? LPC_GPIO0->FIOSET|=(1<<p):LPC_GPIO0->FIOCLR|=(1<<p);
+		break;
+	case 1:
+		val ? LPC_GPIO1->FIOSET|=(1<<p):LPC_GPIO1->FIOCLR|=(1<<p);
+		break;
+	case 2:
+		val ? LPC_GPIO2->FIOSET|=(1<<p):LPC_GPIO2->FIOCLR|=(1<<p);
+		break;
 	}
 }
 

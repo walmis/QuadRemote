@@ -10,6 +10,7 @@
 
 #include "info_screen.hpp"
 #include "configurators.hpp"
+#include "Switches.h"
 
 class RadioScreen : public InfoScreen {
 public:
@@ -86,11 +87,11 @@ public:
 		lines[1].addField(axes.getChannel(3), 5);
 		lines[1].addField(axes.getChannel(4), 5);
 
-		lines[1].addField(btnL::read(), 2);
-		lines[1].addField(btnR::read(), 1);
-		lines[1].addField(btnU::read(), 1);
-		lines[1].addField(btnD::read(), 1);
-		lines[1].addField(auxSw5::read(), 1);
+		lines[1].addField(switches.getState(0), 2);
+		lines[1].addField(switches.getState(1), 1);
+		lines[1].addField(switches.getState(2), 1);
+		lines[1].addField(switches.getState(3), 1);
+		lines[1].addField(switches.getState(4), 1);
 	}
 
 	Configurator* getConfigurator(uint8_t i) {

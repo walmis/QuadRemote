@@ -19,10 +19,11 @@ void Axes::handleInit() {
 	ADC::enableChannel(4);
 	ADC::enableChannel(5);
 	ADC::enableChannel(6);
-	ADC::start(ADC::ADCStartMode::START_CONTINUOUS);
+
 	if (!eeprom.get(&EEData::axisCalibration, calData)) {
 		panic("eeprom cal read fail");
 	}
+
 }
 
 void Axes::handleTick() {
@@ -59,12 +60,15 @@ void Axes::calibration(bool en) {
 			calData[i][1] = 0; //max
 		}
 	} else {
-		eeprom.put(&EEData::axisCalibration, calData);
+		if(!eeprom.put(&EEData::axisCalibration, calData)) {
+			panic("eeprom write failed");
+		}
 	}
 }
 
 int16_t Axes::getChannel(uint8_t ch) {
 	uint16_t min = calData[ch][0];
 	uint16_t max = calData[ch][1];
+	if(max == min) return -4096;
 	return (channels[ch] - min) * 1024 / (max - min);
 }

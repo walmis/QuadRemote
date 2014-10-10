@@ -10,6 +10,7 @@
 #include <xpcc/driver/storage/i2c_eeprom.hpp>
 
 #include "eedata.hpp"
+#include "system.hpp"
 
 template<typename T, typename U> constexpr size_t offsetOf(U T::*member)
 {
@@ -22,10 +23,12 @@ public:
 	virtual ~Eeprom(){};
 
 	void initialize()  {
-		readByte(0, token);
+		if(!readByte(0, token)) {
+			panic("eeprom init failed");
+		}
 
 		if(token != TOKEN) {
-			write(0, (uint8_t*)&eeDefaults, sizeof(eeDefaults));
+			write(0, (uint8_t*)&eeDefaults, sizeof(EEData));
 		}
 	}
 

@@ -12,7 +12,7 @@
 void Display::handleTick()
 {
 	LcdDisplay<Hd44780Lcd>::handleTick();
-	static PeriodicTimer<> t(10);
+	static xpcc::PeriodicTimer<> t(10);
 	if (t.isExpired()) {
 		updateButtons();
 	}

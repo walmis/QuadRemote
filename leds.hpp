@@ -26,4 +26,6 @@ private:
 	Mode mode;
 };
 
+extern Leds leds;
+
 #endif /* LEDS_H_ */
