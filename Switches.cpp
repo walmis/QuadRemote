@@ -29,8 +29,7 @@ Switches::Switches() {
 }
 
 void Switches::handleTick() {
-	static xpcc::PeriodicTimer<> t(2);
-return;
+	static xpcc::PeriodicTimer<> t(20);
 	if(t.isExpired()) {
 		bool s1 = auxSw4mux::read();
 		bool s2 = auxSw5mux::read();

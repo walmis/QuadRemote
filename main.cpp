@@ -14,7 +14,7 @@
 #include "Switches.h"
 
 #include <xpcc/driver/connectivity/usb/USBDevice.hpp>
-
+#include <xpcc/architecture/peripheral/i2c_adapter.hpp>
 #include "eeprom/eeprom.hpp"
 #include "radio.hpp"
 #include "remote_control.hpp"
@@ -94,30 +94,65 @@ protected:
 		if(cmp(argv[0], "reset")) {
 			NVIC_SystemReset();
 		}
+		else if (cmp(argv[0], "scan")) {
+			xpcc::I2cWriteAdapter adapter;
 
+			uint8_t buf[3] = { 0x0F };
+
+			XPCC_LOG_DEBUG << "Scanning i2c bus\n";
+			for (int i = 0; i < 128; i++) {
+				adapter.initialize(i, buf, 1);
+				I2cMaster1::startBlocking(&adapter);
+
+				if (I2cMaster1::getErrorState()
+						!= xpcc::I2cMaster::Error::AddressNack) {
+					XPCC_LOG_DEBUG.printf("Found device @ 0x%x\n", i);
+				}
+			}
+		}
 		else if(cmp(argv[0], "flash")) {
 
 			LPC_WDT->WDFEED = 0x56;
 		}
 		else if(cmp(argv[0], "eeread")) {
-			uint16_t addr = toInt(argv[1]);
+			if(nargs == 1) {
+				uint8_t buf[256];
+				for(int i=0; i < 255;i++) {
+					eeprom.readByte((uint16_t)i, buf[i]);
+				}
 
-			uint8_t c = 0;
-			if(!eeprom.readByte(addr, c)) {
-				printf("Failed\n");
+				XPCC_LOG_DEBUG.dump_buffer(buf, 255);
+
 			} else {
-				printf("> %02x\n", c);
+				uint16_t addr = toInt(argv[1]);
+
+				uint8_t c = 0;
+				if(!eeprom.readByte(addr, c)) {
+					printf("Failed\n");
+				} else {
+					printf("> %02x\n", c);
+				}
 			}
 		}
 		else if(cmp(argv[0], "eewrite")) {
-			uint16_t addr = toInt(argv[1]);
-			uint16_t b = toInt(argv[2]);
+			if(nargs == 1) {
+				uint8_t buf[256];
+				for(int i = 0; i < 255; i++) {
+					buf[i] = i;
+				}
 
-			uint8_t c = 0;
-			if(!eeprom.writeByte(addr, b)) {
-				printf("Failed\n");
+				eeprom.write(0, buf, 255);
+
 			} else {
-				printf("OK\n");
+				uint16_t addr = toInt(argv[1]);
+				uint16_t b = toInt(argv[2]);
+
+				uint8_t c = 0;
+				if(!eeprom.writeByte(addr, b)) {
+					printf("Failed\n");
+				} else {
+					printf("OK\n");
+				}
 			}
 		}
 		else if(cmp(argv[0], "flashboot")) {
@@ -206,6 +241,18 @@ protected:
 			disp.setPage(page);
 
 		}
+
+		else if(cmp(argv[0], "dumpadc")) {
+			XPCC_LOG_DEBUG .printf("PCADC %d\n", CLKPwr::getPCLK(CLKPwr::ClkType::ADC));
+			XPCC_LOG_DEBUG .printf("ADCR 0x%x\n", LPC_ADC->ADCR);
+
+			uint8_t ch = 0;
+			for(int ch = 0; ch < 8; ch++) {
+				XPCC_LOG_DEBUG .printf("[%d] %d\n", ch, ADC::getData(ch));
+			}
+
+
+		}
 	}
 };
 
@@ -236,7 +283,12 @@ void panic(const char* str) {
 int main() {
 	RitClock::initialize();
 	SysTickTimer::enable();
+	delay_ms(1);
+
 	ADC::init();
+	ADC::enableChannel(AD_CH_VBAT); //VBAT
+	Pinsel::setFunc(0, 2, 2); //AD0[7]
+	ADC::start(ADC::ADCStartMode::START_CONTINUOUS);
 
 	Uart2::init(460800);
 
@@ -269,11 +321,6 @@ int main() {
 	delay_ms(50);
 
 	lcd.initialize();
-
-	ADC::enableChannel(AD_CH_VBAT); //VBAT
-	Pinsel::setFunc(0, 2, 2); //AD0[7]
-
-	ADC::start(ADC::ADCStartMode::START_CONTINUOUS);
 
 	GpioInt::enableInterrupts();
 
