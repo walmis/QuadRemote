@@ -11,18 +11,26 @@
 bool Switches::getState(uint8_t sw) {
 	switch(sw) {
 	case 0:
-		return auxSw1::read();
+		return !auxSw1::read();
 	case 1:
-		return auxSw2::read();
+		return !auxSw2::read();
 	case 2:
-		return auxSw3::read();
+		return !auxSw3::read();
 	case 3:
-		return state_aux4;
+		return !state_aux4;
 	case 4:
-		return state_aux5;
+		return !state_aux5;
 	default:
 		return false;
 	}
+}
+
+uint8_t Switches::getBitmask() {
+	uint8_t st = 0;
+	for(uint8_t i= 0; i < 5; i++) {
+		st |= (getState(i)&1)<<i;
+	}
+	return st;
 }
 
 Switches::Switches() {

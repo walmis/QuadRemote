@@ -52,7 +52,8 @@ public:
 		lines[0].addField(radio.lastRssi(), 4);
 		switch(index) {
 		case 0:
-			lines[1] << radio.getFreq();
+			lines[1] << radio.getFreq()/1000 << '.';
+			lines[1] << radio.getFreq()%1000;
 			lines[1] << "MHz";
 			break;
 		case 1:
@@ -76,7 +77,7 @@ public:
 	void nextValue() {
 		switch(index) {
 		case 0:
-			radio.setFreq(radio.getFreq()+0.1);
+			radio.setFreq(radio.getFreq()+100);
 			break;
 		case 1:
 			radio.setNumFhChannels(radio.getNumFhChannels()+1);
@@ -100,7 +101,7 @@ public:
 	void prevValue() {
 		switch(index) {
 		case 0:
-			radio.setFreq(radio.getFreq()-0.1);
+			radio.setFreq(radio.getFreq()-100);
 			break;
 		case 1:
 			radio.setNumFhChannels(radio.getNumFhChannels()-1);

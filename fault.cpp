@@ -41,16 +41,16 @@ void Hard_Fault_Handler(uint32_t stack[]) {
 
 	//register uint32_t* stack = (uint32_t*)__get_MSP();
 
-	XPCC_LOG_DEBUG .printf("Hard Fault\n");
+	XPCC_LOG_ERROR .printf("Hard Fault\n");
 
-	XPCC_LOG_DEBUG .printf("r0  = 0x%08x\n", stack[r0]);
-	XPCC_LOG_DEBUG .printf("r1  = 0x%08x\n", stack[r1]);
-	XPCC_LOG_DEBUG .printf("r2  = 0x%08x\n", stack[r2]);
-	XPCC_LOG_DEBUG .printf("r3  = 0x%08x\n", stack[r3]);
-	XPCC_LOG_DEBUG .printf("r12 = 0x%08x\n", stack[r12]);
-	XPCC_LOG_DEBUG .printf("lr  = 0x%08x\n", stack[lr]);
-	XPCC_LOG_DEBUG .printf("pc  = 0x%08x\n", stack[pc]);
-	XPCC_LOG_DEBUG .printf("psr = 0x%08x\n", stack[psr]);
+	XPCC_LOG_ERROR .printf("r0  = 0x%08x\n", stack[r0]);
+	XPCC_LOG_ERROR .printf("r1  = 0x%08x\n", stack[r1]);
+	XPCC_LOG_ERROR .printf("r2  = 0x%08x\n", stack[r2]);
+	XPCC_LOG_ERROR .printf("r3  = 0x%08x\n", stack[r3]);
+	XPCC_LOG_ERROR .printf("r12 = 0x%08x\n", stack[r12]);
+	XPCC_LOG_ERROR .printf("lr  = 0x%08x\n", stack[lr]);
+	XPCC_LOG_ERROR .printf("pc  = 0x%08x\n", stack[pc]);
+	XPCC_LOG_ERROR .printf("psr = 0x%08x\n", stack[psr]);
 
 	crashData[0] = 1;
 	crashData[1] = stack[pc];

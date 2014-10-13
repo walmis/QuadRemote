@@ -13,6 +13,6 @@ typedef xpcc::Hd44780<lcd_e, xpcc::gpio::Unused, lcd_rs, lcd_data> Hd44780Lcd;
 
 extern Hd44780Lcd lcd;
 
-
+extern xpcc::lpc17::BufferedUart<xpcc::lpc17::Uart2> btUart;
 
 #endif

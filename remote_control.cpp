@@ -9,6 +9,7 @@
 #include <system.hpp>
 #include "radio.hpp"
 #include <Axes.hpp>
+#include <Switches.h>
 
 void RemoteControl::handleInit() {
 	Radio::handleInit();
@@ -22,10 +23,10 @@ void RemoteControl::handleInit() {
 
 	txPacketTimer.restart(txInterval);
 
-	setFHStepSize(10);
-	setFrequency(freq, afcPullIn);
-	setTxPower(txPower);
-	setModemConfig(modemCfg);
+	Radio::setFHStepSize(10);
+	Radio::setFrequency(freq/1000.0, afcPullIn);
+	Radio::setTxPower(txPower);
+	Radio::setModemConfig(modemCfg);
 }
 
 uint8_t RemoteControl::getLinkQuality() {
@@ -59,12 +60,13 @@ void RemoteControl::handleTick() {
 
 			//radio data is sent, now we can apply new settings
 			if(newRadioDataSent) {
-				setFrequency(freq, afcPullIn);
-				setModemConfig(modemCfg);
+				setMode(RHMode::RHModeIdle);
+
+				Radio::setFrequency(freq/1000.0, afcPullIn);
+				Radio::setModemConfig(modemCfg);
 				newRadioDataSent = false;
 			}
 		}
-
 
 		if(available()) {
 			uint8_t buf[255];
@@ -75,28 +77,18 @@ void RemoteControl::handleTick() {
 				Packet* p = (Packet*)buf;
 
 				switch(p->id) {
-				case PACKET_DATA_FIRST:
-					dataPos = 0;
-					//fall through
-				case PACKET_DATA_LAST:
+
 				case PACKET_DATA: {
-					uint8_t sz = len-sizeof(Packet);
-					if(sz > (sizeof(packetBuf) - dataPos)) {
-						sz = sizeof(packetBuf) - dataPos;
-					}
-					memcpy(packetBuf+dataPos,
-							buf+sizeof(Packet), sz);
-					dataPos += sz;
-					if(p->id == PACKET_DATA_LAST) {
-						dataLen = dataPos;
-						dataPos = 0;
+					uint8_t size = len - sizeof(Packet);
+					printf("recv %d\n", size);
+					if(rxbuf.bytes_free() < size) {
+						printf("drop packet\n");
+					} else {
+						rxbuf.write(buf+sizeof(Packet), size);
 					}
 				}
 				break;
 
-				}
-				if(p->id == PACKET_DATA_LAST) {
-					printf("received packed len:%d\n", dataLen);
 				}
 
 				if(p->id >= PACKET_RC) {
@@ -114,7 +106,6 @@ void RemoteControl::handleTick() {
 					lastSeq = p->seq;
 					lastAckSeq = p->ackSeq;
 				}
-
 			}
 
 			//XPCC_LOG_DEBUG.dump_buffer(buf, len);
@@ -122,13 +113,14 @@ void RemoteControl::handleTick() {
 
 
 		if (!sending && txPacketTimer.isExpired() && rssiRead() < 80) {
+			bool noAck = false;
 			//sent packet was not acknowledged
 			if(rcData.seq != lastAckSeq) {
 				//if(rcData.seq == lastAckSeq)
 				//if packet was lost, restore previous FH channel
 				//if(numFhChannels)
 				//	setFHChannel(((rcData.seq-1)^0x55) % numFhChannels);
-
+				noAck = true;
 				_txBad++;
 			}
 
@@ -139,7 +131,7 @@ void RemoteControl::handleTick() {
 			rcData.rollCh = axes.getChannel(AXIS_ROLL_CH);
 			rcData.throttleCh = axes.getChannel(AXIS_THROTTLE_CH);
 			rcData.auxCh = axes.getChannel(AXIS_AUX6_CH);
-			//rcData.switches = (auxSw5::read() & 0x01);
+			rcData.switches = switches.getBitmask();
 
 			noiseFloor = ((uint16_t) noiseFloor * 5 + rssiRead()) / 6;
 
@@ -154,17 +146,43 @@ void RemoteControl::handleTick() {
 				p.txPower = getTxPower();
 
 				send((uint8_t*) (&p), sizeof(RadioCfgPacket));
+				printf("sending radio conf\n");
 				newRadioDataSent = true;
 				configurationChanged = false;
 			} else {
-				send((uint8_t*) (&rcData), sizeof(rcData));
+				if(noAck && dataLen) {
+					printf("retry\n");
+					//retransmit previous data
+					memcpy(packetBuf, (void*)&rcData, sizeof(RCPacket));
+					send(packetBuf, dataLen);
+
+				} else {
+					size_t avail = txbuf.bytes_used();
+					if(avail) {
+						size_t space = sizeof(packetBuf) - sizeof(RCPacket);
+						uint8_t* ptr = packetBuf + sizeof(RCPacket);
+						//copy pending rc packet to tx buffer
+						memcpy(packetBuf, (void*)&rcData, sizeof(RCPacket));
+						while(space && avail) {
+							*ptr++ = txbuf.read();
+							space--;
+							avail--;
+						}
+						dataLen = ptr - packetBuf;
+
+						printf("send %d\n", dataLen-sizeof(RCPacket));
+						send(packetBuf, dataLen);
+
+					} else {
+						dataLen = 0;
+
+						send((uint8_t*) (&rcData), sizeof(rcData));
+					}
+
+				}
 			}
-
 			txPacketTimer.restart(txInterval);
-			//t.end();
-			//t.start();
 			sending = true;
-
 		}
 
 	}

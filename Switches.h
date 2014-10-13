@@ -16,6 +16,7 @@ public:
 	Switches();
 
 	bool getState(uint8_t sw);
+	uint8_t getBitmask();
 
 private:
 	void handleTick();

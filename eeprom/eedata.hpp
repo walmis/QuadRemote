@@ -12,12 +12,12 @@
 #include <xpcc/math.hpp>
 #include <RH_RF22.h>
 
-#define TOKEN 0x67
+#define TOKEN 0x68
 
 struct EEData {
 	uint8_t token;
 
-	float rfFrequency; //radio frequency
+	uint32_t rfFrequency; //radio frequency
 	float afcPullIn;
 	uint8_t txPower;
 	uint8_t fhChannels;
@@ -32,7 +32,7 @@ struct EEData {
 
 const EEData eeDefaults = {
 		TOKEN,
-		429.0f,
+		429000,
 		0.05f,
 		RH_RF22_TXPOW_1DBM,
 		10,

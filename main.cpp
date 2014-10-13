@@ -22,6 +22,7 @@
 #include "leds.hpp"
 #include "display/display.hpp"
 #include "battery.hpp"
+#include "mavHandler.hpp"
 
 #include <xpcc/debug.hpp>
 #include <xpcc/math/filter.hpp>
@@ -43,19 +44,23 @@ Battery battery;
 Display disp(lcd);
 Leds leds;
 Switches switches;
+MAVHandler mavHandler;
 
 #define _DEBUG
 //#define _SER_DEBUG
 
-USBSerial device(0xffff, 0xce38);
-xpcc::IOStream stream(device);
+BufferedUart<Uart2> btUart(460800, 64, 64);
+IODeviceWrapper<Uart2> wrp;
+
+USBSerial usbSerial(0xffff, 0xce38);
+xpcc::IOStream stream(usbSerial);
 xpcc::NullIODevice null;
 
 #ifdef _DEBUG
-xpcc::log::Logger xpcc::log::info(device);
-xpcc::log::Logger xpcc::log::debug(device);
-xpcc::log::Logger xpcc::log::error(device);
-xpcc::log::Logger xpcc::log::warning(device);
+xpcc::log::Logger xpcc::log::info(usbSerial);
+xpcc::log::Logger xpcc::log::debug(usbSerial);
+xpcc::log::Logger xpcc::log::error(wrp);
+xpcc::log::Logger xpcc::log::warning(usbSerial);
 #else
 #ifdef _SER_DEBUG
 xpcc::log::Logger xpcc::log::info(uart);
@@ -223,12 +228,19 @@ protected:
 
 			ios << fwversion << endl;
 		}
+		else if(cmp(argv[0], "bttest")) {
+			btUart.write((uint8_t*)"testas\n", 7);
+		}
 
 		else if(cmp(argv[0], "rssi")) {
 
 			printf("rssi %d\n", radio.rssiRead() / 2 - 120 );
 		}
+		else if(cmp(argv[0], "radio")) {
 
+			printf("irq: %d\n", radio_irq::read());
+			printf("mode: %d\n", radio.mode());
+		}
 		else if(cmp(argv[0], "freq")) {
 			int f = toInt(argv[1]);
 
@@ -257,7 +269,7 @@ protected:
 };
 
 
-CmdTerminal cmd(device);
+CmdTerminal cmd(usbSerial);
 //CmdTerminal ucmd(uart);
 
 BatScreen screen_bat;
@@ -287,10 +299,7 @@ int main() {
 
 	ADC::init();
 	ADC::enableChannel(AD_CH_VBAT); //VBAT
-	Pinsel::setFunc(0, 2, 2); //AD0[7]
 	ADC::start(ADC::ADCStartMode::START_CONTINUOUS);
-
-	Uart2::init(460800);
 
 	Pinsel::setFunc(0, 10, 1); //TXD2
 	Pinsel::setFunc(0, 11, 1); //RXD2
@@ -313,7 +322,7 @@ int main() {
 	////////
 
 	usbConnPin::setOutput(true);
-	device.connect();
+	usbSerial.connect();
 
 	NVIC_SetPriority(USB_IRQn, 10);
 	NVIC_SetPriority(EINT3_IRQn, 0);

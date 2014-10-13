@@ -15,13 +15,6 @@ void Axes::handleInit() {
 	ADC::enableChannel(5);
 	ADC::enableChannel(6);
 
-	Pinsel::setFunc(0, 3, 2);
-	Pinsel::setFunc(0, 25, 1);
-	Pinsel::setFunc(0, 26, 1);
-	Pinsel::setFunc(1, 30, 3);
-	Pinsel::setFunc(1, 31, 3);
-
-
 	if (!eeprom.get(&EEData::axisCalibration, calData)) {
 		panic("eeprom cal read fail");
 	}
@@ -34,10 +27,6 @@ void Axes::handleTick() {
 
 		for (int i = 0; i < 5; i++) {
 			int16_t adc = ADC::getData(i + 2);
-
-			if(adc == 0) {
-				panic("adc error");
-			}
 
 			channels[i] = (channels[i] * 4 - channels[i] + adc + (4 / 2)) / 4;
 
@@ -54,6 +43,10 @@ void Axes::handleTick() {
 					calData[i][0] = channels[i];
 				}
 			}
+		}
+
+		if(channels[1] == 0 && channels[2] == 0) {
+			panic("ADC ERROR");
 		}
 	}
 }

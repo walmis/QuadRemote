@@ -28,7 +28,7 @@ struct RadioCfgPacket : Packet {
 	RadioCfgPacket() {
 		id = PACKET_RF_PARAM_SET;
 	}
-	float frequency;
+	uint32_t frequency;
 	float afcPullIn;
 	uint8_t modemCfg;
 	uint8_t fhChannels;
@@ -44,9 +44,13 @@ struct RCPacket : Packet{
 	uint8_t switches;
 } __attribute__((packed));
 
-class RemoteControl : public Radio {
+class RemoteControl : public Radio, public BufferedIODevice {
 public:
-	RemoteControl() : txPacketTimer(20) {}
+	RemoteControl() :
+		BufferedIODevice(256, 256),
+		txPacketTimer(20),
+		dataLen(0)
+	{}
 
 	RCPacket rcData;
 
@@ -66,11 +70,11 @@ public:
 		eeprom.put(&EEData::afcPullIn, afcPullIn);
 	}
 
-	float getFreq() const {
+	uint32_t getFreq() const {
 		return freq;
 	}
 
-	void setFreq(float freq) {
+	void setFreq(uint32_t freq) {
 		configurationChanged = true;
 		eeprom.put(&EEData::rfFrequency, freq);
 		this->freq = freq;
@@ -145,13 +149,12 @@ protected:
 	uint32_t _txBad;
 
 	uint8_t packetBuf[255];
-	uint8_t dataPos;
 	uint8_t dataLen;
 
 	Timeout<> txPacketTimer;
 
 	///configuration parameters////
-	float freq;
+	uint32_t freq;
 	float afcPullIn;
 	uint8_t txPower;
 	uint8_t txInterval;
