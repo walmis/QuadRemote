@@ -5,37 +5,37 @@
 			<provider copy-of="extension" id="org.eclipse.cdt.ui.UserLanguageSettingsProvider"/>
 			<provider-reference id="org.eclipse.cdt.core.ReferencedProjectsLanguageSettingsProvider" ref="shared-provider"/>
 			<provider-reference id="org.eclipse.cdt.managedbuilder.core.MBSLanguageSettingsProvider" ref="shared-provider"/>
-			<provider class="org.eclipse.cdt.internal.build.crossgcc.CrossGCCBuiltinSpecsDetector" console="false" env-hash="125260712500400532" id="org.eclipse.cdt.build.crossgcc.CrossGCCBuiltinSpecsDetector" keep-relative-paths="false" name="CDT Cross GCC Built-in Compiler Settings" parameter="${COMMAND} ${FLAGS}  -mcpu=cortex-m3 -std=c++11 -E -P -v -dD &quot;${INPUTS}&quot;" prefer-non-shared="true" store-entries-with-project="true">
+			<provider class="org.eclipse.cdt.internal.build.crossgcc.CrossGCCBuiltinSpecsDetector" console="false" env-hash="1336440771190618870" id="org.eclipse.cdt.build.crossgcc.CrossGCCBuiltinSpecsDetector" keep-relative-paths="false" name="CDT Cross GCC Built-in Compiler Settings" parameter="${COMMAND} ${FLAGS}  -mcpu=cortex-m3 -std=c++11 -E -P -v -dD &quot;${INPUTS}&quot;" prefer-non-shared="true" store-entries-with-project="true">
 				<language-scope id="org.eclipse.cdt.core.gcc"/>
 				<language-scope id="org.eclipse.cdt.core.g++"/>
 				<language id="org.eclipse.cdt.core.gcc">
-					<entry kind="includePath" name="/home/walmis/arm-none-eabi/lib/gcc/arm-none-eabi/4.8.4/include">
+					<entry kind="includePath" name="/home/walmis/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/4.8.4/include">
 						<flag value="BUILTIN|READONLY"/>
 					</entry>
-					<entry kind="includePath" name="/home/walmis/arm-none-eabi/lib/gcc/arm-none-eabi/4.8.4/include-fixed">
+					<entry kind="includePath" name="/home/walmis/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/4.8.4/include-fixed">
 						<flag value="BUILTIN|READONLY"/>
 					</entry>
-					<entry kind="includePath" name="/home/walmis/arm-none-eabi/arm-none-eabi/include">
+					<entry kind="includePath" name="/home/walmis/gcc-arm-none-eabi/arm-none-eabi/include">
 						<flag value="BUILTIN|READONLY"/>
 					</entry>
 				</language>
 				<language id="org.eclipse.cdt.core.g++">
-					<entry kind="includePath" name="/home/walmis/arm-none-eabi/arm-none-eabi/include/c++/4.8.4">
+					<entry kind="includePath" name="/home/walmis/gcc-arm-none-eabi/arm-none-eabi/include/c++/4.8.4">
 						<flag value="BUILTIN|READONLY"/>
 					</entry>
-					<entry kind="includePath" name="/home/walmis/arm-none-eabi/arm-none-eabi/include/c++/4.8.4/arm-none-eabi">
+					<entry kind="includePath" name="/home/walmis/gcc-arm-none-eabi/arm-none-eabi/include/c++/4.8.4/arm-none-eabi">
 						<flag value="BUILTIN|READONLY"/>
 					</entry>
-					<entry kind="includePath" name="/home/walmis/arm-none-eabi/arm-none-eabi/include/c++/4.8.4/backward">
+					<entry kind="includePath" name="/home/walmis/gcc-arm-none-eabi/arm-none-eabi/include/c++/4.8.4/backward">
 						<flag value="BUILTIN|READONLY"/>
 					</entry>
-					<entry kind="includePath" name="/home/walmis/arm-none-eabi/lib/gcc/arm-none-eabi/4.8.4/include">
+					<entry kind="includePath" name="/home/walmis/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/4.8.4/include">
 						<flag value="BUILTIN|READONLY"/>
 					</entry>
-					<entry kind="includePath" name="/home/walmis/arm-none-eabi/lib/gcc/arm-none-eabi/4.8.4/include-fixed">
+					<entry kind="includePath" name="/home/walmis/gcc-arm-none-eabi/lib/gcc/arm-none-eabi/4.8.4/include-fixed">
 						<flag value="BUILTIN|READONLY"/>
 					</entry>
-					<entry kind="includePath" name="/home/walmis/arm-none-eabi/arm-none-eabi/include">
+					<entry kind="includePath" name="/home/walmis/gcc-arm-none-eabi/arm-none-eabi/include">
 						<flag value="BUILTIN|READONLY"/>
 					</entry>
 				</language>

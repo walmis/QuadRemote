@@ -105,12 +105,16 @@ void RemoteControl::handleTick() {
 					rcData.ackSeq = p->seq; //acknowledge packet
 					lastSeq = p->seq;
 					lastAckSeq = p->ackSeq;
+
+					if(rcData.seq == lastAckSeq) {
+						//our packet was acknowledged
+						txPacketTimer.restart(0);
+					}
 				}
 			}
 
 			//XPCC_LOG_DEBUG.dump_buffer(buf, len);
-		} else
-
+		}
 
 		if (!sending && txPacketTimer.isExpired() && rssiRead() < 80) {
 			bool noAck = false;
