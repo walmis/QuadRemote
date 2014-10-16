@@ -8,7 +8,7 @@
 #ifndef LEDS_H_
 #define LEDS_H_
 
-class Leds : TickerTask {
+class Leds final : TickerTask {
 public:
 	enum Mode {
 		MODE_BATTERY = 0,

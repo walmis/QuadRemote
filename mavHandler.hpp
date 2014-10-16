@@ -10,7 +10,7 @@
 
 #include <xpcc/architecture.hpp>
 
-class MAVHandler : xpcc::TickerTask {
+class MAVHandler final : xpcc::TickerTask {
 public:
 	MAVHandler();
 

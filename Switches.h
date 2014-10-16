@@ -10,7 +10,7 @@
 
 #include <xpcc/architecture.hpp>
 
-class Switches : xpcc::TickerTask {
+class Switches final : xpcc::TickerTask {
 public:
 
 	Switches();

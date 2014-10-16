@@ -8,8 +8,6 @@
 #include <xpcc/debug.hpp>
 #include <xpcc/architecture.hpp>
 
-
-
 enum { r0, r1, r2, r3, r12, lr, pc, psr};
 
 void boot_jump( uint32_t address ){

@@ -5,6 +5,7 @@
 #include <RHGenericSPI.h>
 #include <stdarg.h>
 #include "pindefs.hpp"
+#include <stdio.h>
 
 int printf(const char* fmt, ...) {
 	va_list ap;

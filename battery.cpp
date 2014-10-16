@@ -6,6 +6,8 @@
  */
 
 #include "battery.hpp"
+using namespace xpcc;
+using namespace xpcc::lpc17;
 
 /* voltages (millivolt) of 0%, 10%, ... 100% */
 const static unsigned short percent_to_volt_discharge[2][11] = {

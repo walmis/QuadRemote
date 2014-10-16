@@ -44,7 +44,7 @@ struct RCPacket : Packet{
 	uint8_t switches;
 } __attribute__((packed));
 
-class RemoteControl : public Radio, public BufferedIODevice {
+class RemoteControl final : public Radio, public BufferedIODevice {
 public:
 	RemoteControl() :
 		BufferedIODevice(256, 256),

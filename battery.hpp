@@ -12,11 +12,8 @@
 #include "pindefs.hpp"
 #include <cmath>
 
-using namespace xpcc;
-using namespace xpcc::lpc17;
 
-
-class Battery : TickerTask {
+class Battery final : xpcc::TickerTask {
 public:
 	int getBatteryPercent();
 
