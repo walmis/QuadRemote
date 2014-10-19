@@ -8,7 +8,7 @@
 #ifndef CONFIGURATORS_HPP_
 #define CONFIGURATORS_HPP_
 
-#include "configurators.hpp"
+#include "configurator.hpp"
 #include "Axes.hpp"
 #include "leds.hpp"
 #include "radio.hpp"

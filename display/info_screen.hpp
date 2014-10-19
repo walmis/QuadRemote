@@ -13,16 +13,12 @@
 
 class InfoScreen {
 public:
-	InfoScreen() : prev(0), next(0) {}
-
-	virtual void populate(LCDLine* lines, uint8_t nLines) = 0;
-
-	virtual Configurator* getConfigurator(uint8_t i) {
+	static bool populate(LCDLine* lines, uint8_t nLines) {
+		return false;
+	};
+	static Configurator* getConfigurator(uint8_t i) {
 		return 0;
 	}
-
-	InfoScreen* prev;
-	InfoScreen* next;
 };
 
 

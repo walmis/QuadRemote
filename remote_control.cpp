@@ -80,7 +80,7 @@ void RemoteControl::handleTick() {
 
 				case PACKET_DATA: {
 					uint8_t size = len - sizeof(Packet);
-					printf("recv %d\n", size);
+					//printf("recv %d\n", size);
 					if(rxbuf.bytes_free() < size) {
 						printf("drop packet\n");
 					} else {

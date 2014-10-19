@@ -25,6 +25,17 @@ public:
 		pos = 0;
 	}
 
+	void printf(char* fmt, uint8_t fieldWidth, bool align, ...) {
+		xpcc::StringStream<16> str;
+
+		va_list ap;
+		va_start(ap, align);
+		str.vprintf(fmt, ap);
+		va_end(ap);
+
+		addField(str, fieldWidth, align);
+	}
+
 	template <typename T>
 	void addField(T value, uint8_t fieldWidth = 0, bool align = true) {
 		xpcc::StringStream<16> str;

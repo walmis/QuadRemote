@@ -41,7 +41,7 @@ RemoteControl radio;
 Hd44780Lcd lcd(16, 2);
 Axes axes;
 Battery battery;
-Display disp(lcd);
+Display<BatScreen,AxesScreen,RadioScreen,MavStatusDisplay,AttitudeDisplay,GpsStatus> disp(lcd);
 Leds leds;
 Switches switches;
 MAVHandler mavHandler;
@@ -272,15 +272,8 @@ protected:
 CmdTerminal cmd(usbSerial);
 //CmdTerminal ucmd(uart);
 
-BatScreen screen_bat;
-AxesScreen screen_ax;
-RadioScreen screen_radio;
 
-InfoScreen* const screens[] = {
-		&screen_bat,
-		&screen_ax,
-		&screen_radio
-};
+
 
 void panic(const char* str) {
 	lcd.clear();
@@ -339,9 +332,6 @@ int main() {
 
 	eeprom.initialize();
 
-	for(auto s : screens) {
-		disp.addScreen(s);
-	}
 
 	TickerTask::tasksRun(idle);
 }
