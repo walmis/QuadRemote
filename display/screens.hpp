@@ -182,6 +182,12 @@ public:
 		lines[0] << "BAT:";
 		lines[0] << mavHandler.sysStatus.battery_remaining;
 
+		if(mavHandler.heartBeat.base_mode & MAV_MODE_FLAG_SAFETY_ARMED) {
+			lines[1] << "ARMD ";
+		} else {
+			lines[1] << "SAFE ";
+		}
+
 		lines[1].printf("%.1fV ", 6, 0, mavHandler.sysStatus.voltage_battery/1000.0f);
 
 		lines[1].printf("%.1fA", 5, 1, mavHandler.sysStatus.current_battery/100.0f);
