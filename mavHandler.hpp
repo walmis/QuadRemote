@@ -21,12 +21,17 @@ public:
 	mavlink_attitude_t attitude;
 	mavlink_sys_status_t sysStatus;
 
+	bool getLinkStatus();
+
 protected:
 	void handleTick();
 	void parseCharFromMAV(uint8_t c);
 
-	mavlink_message_t msgBuf;
+	uint8_t buffer[MAVLINK_MAX_PACKET_LEN];
+
 	mavlink_status_t mavStatus;
+
+	xpcc::Timestamp lastHeartbeat;
 };
 
 extern MAVHandler mavHandler;
