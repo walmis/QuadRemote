@@ -15,6 +15,8 @@ void Axes::handleInit() {
 	ADC::enableChannel(5);
 	ADC::enableChannel(6);
 
+	ADC::start(ADC::ADCStartMode::START_CONTINUOUS);
+
 	if (!eeprom.get(&EEData::axisCalibration, calData)) {
 		panic("eeprom cal read fail");
 	}
