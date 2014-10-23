@@ -52,6 +52,9 @@ void RemoteControl::handleRxComplete() {
 }
 
 void RemoteControl::handleTick() {
+	if(!radio_irq::read()) {
+		RH_RF22::isr0();
+	}
 
 	if (!transmitting()) {
 
