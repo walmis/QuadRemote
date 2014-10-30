@@ -41,7 +41,7 @@ RemoteControl radio;
 Hd44780Lcd lcd(16, 2);
 Axes axes;
 Battery battery;
-Display<BatScreen,AxesScreen,RadioScreen,MavStatusDisplay,AttitudeDisplay,GpsStatus> disp(lcd);
+Display<BatScreen,AxesScreen,RadioScreen,MavStatusDisplay,AttitudeDisplay,GpsStatus,HdgDisplay> disp(lcd);
 Leds leds;
 Switches switches;
 MAVHandler mavHandler;

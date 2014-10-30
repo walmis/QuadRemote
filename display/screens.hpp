@@ -132,8 +132,8 @@ public:
 		lines[1] << "SPD:";
 		lines[1].printf("%.1f", 4, true, mavHandler.vfrHud.groundspeed*3.6f);
 
-		lines[1] << " ALT:";
-		lines[1].addField(lroundf(mavHandler.gpsStatus.alt/1000.0), 3);
+		lines[1] << " HDOP";
+		lines[1].addField(mavHandler.gpsStatus.eph/100.0, 3);
 		return true;
 	}
 
@@ -191,6 +191,29 @@ public:
 		lines[1].printf("%.1fV ", 6, 0, mavHandler.sysStatus.voltage_battery/1000.0f);
 
 		lines[1].printf("%.1fA", 5, 1, mavHandler.sysStatus.current_battery/100.0f);
+		return true;
+	}
+
+	static Configurator* getConfigurator(uint8_t i) {
+		return 0;
+	}
+};
+
+
+class HdgDisplay : public InfoScreen {
+public:
+	static bool populate(LCDLine* lines, uint8_t nLines) {
+		lines[0] << "HDG:";
+		lines[0].addField(mavHandler.vfrHud.heading, 3);
+
+		lines[0] << " COG:";
+		lines[0].addField(lroundf(mavHandler.gpsStatus.cog/100.0), 3);
+
+		lines[1] << "ALT:";
+		lines[1].addField(mavHandler.gpsStatus.alt/1000.0, 3);
+
+		lines[1] << " VEL:";
+		lines[1].addField(mavHandler.gpsStatus.vel/100.0/3.6, 3);
 		return true;
 	}
 
