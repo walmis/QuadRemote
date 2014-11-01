@@ -49,7 +49,7 @@ public:
 
 	void populate(LCDLine* lines, uint8_t nLines) {
 		lines[0].addField(confIndex[index], 12, false);
-		lines[0].addField(radio.getRssi(), 4);
+		lines[0].addField(radio.lastRssi(), 4);
 		switch(index) {
 		case 0:
 			lines[1] << radio.getFreq()/1000 << '.';
