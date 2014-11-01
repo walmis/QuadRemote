@@ -15,7 +15,8 @@
 
 class LedConf : public Configurator {
 public:
-	const char* opts[3] = {"Battery", "Signal Quality", "TX/RX"};
+	const char* opts[4] = {"Battery", "Signal Quality", "TX/RX",
+			"Remote Battery"};
 
 	void populate(LCDLine* lines, uint8_t nLines) {
 		lines[0] << "LED Mode Select:";
@@ -25,13 +26,13 @@ public:
 	void nextValue() {
 		uint8_t m = leds.getMode();
 		m--;
-		m %= 3;
+		m %= (Leds::Mode::MODE_LAST);
 		leds.setMode((Leds::Mode)m);
 	}
 	void prevValue() {
 		uint8_t m = leds.getMode();
 		m++;
-		m %= 3;
+		m %= (Leds::Mode::MODE_LAST);
 		leds.setMode((Leds::Mode)m);
 	}
 };

@@ -107,7 +107,8 @@ protected:
 			XPCC_LOG_DEBUG << "Scanning i2c bus\n";
 			for (int i = 0; i < 128; i++) {
 				adapter.initialize(i, buf, 1);
-				I2cMaster1::startBlocking(&adapter);
+				I2cMaster1::start(&adapter);
+				while(adapter.isBusy());
 
 				if (I2cMaster1::getErrorState()
 						!= xpcc::I2cMaster::Error::AddressNack) {

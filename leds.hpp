@@ -13,7 +13,10 @@ public:
 	enum Mode {
 		MODE_BATTERY = 0,
 		MODE_SIGNAL_Q,
-		MODE_TXRX
+		MODE_TXRX,
+		MODE_REMOTE_BATTERY,
+
+		MODE_LAST
 	};
 
 	Mode getMode();
