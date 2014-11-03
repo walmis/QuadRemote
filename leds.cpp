@@ -90,17 +90,17 @@ void Leds::handleTick() {
 			percent = LiPo_Bat::getPercent(voltage / cells);
 			percent = std::min(percent, mavHandler.sysStatus.battery_remaining);
 
-			if (percent < 75) {
+			if (percent < 50) {
 				ledGreen::reset();
 			} else {
 				ledGreen::set();
 			}
-			if (percent < 35) {
+			if (percent < 25) {
 				ledYellow::reset();
 			} else {
 				ledYellow::set();
 			}
-			if (percent < 15) {
+			if (percent < 10) {
 				ledRed::reset();
 			} else {
 				ledRed::set();
